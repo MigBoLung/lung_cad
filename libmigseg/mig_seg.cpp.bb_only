@@ -1,0 +1,1148 @@
+#include "libmigseg.h"
+#include "mig_params_cad.h"
+#include "mig_seg_sep.h"
+#include "mig_seg_close.h"
+
+/**************************************************/
+/* PRIVATE TYPEDEFS */
+/**************************************************/
+typedef void ( *mig_im_flt_f ) ( Mig16u * src, Mig16u * dst, int w, int h );
+
+/**************************************************/
+/* PRIVATE STRUCTS */
+/**************************************************/
+typedef struct _mig_seg_data_t
+{
+    /* binary masks */
+    Mig8u *masks;
+    mig_size_t masks_s;
+
+    /* binary masks left lung */
+    Mig8u *masks_l;
+    mig_size_t masks_l_s;
+
+    /* binary masks right lung */
+    Mig8u *masks_r;
+    mig_size_t masks_r_s;
+
+    /* window center */
+    //int wc;
+
+    /* window width */
+    //int ww;
+
+    /* filter inplace */
+    int filter_inplace;
+
+    /* filtering function */
+    mig_im_flt_f flt_f;
+
+    /* threshold start gary level */
+    int g0;
+
+    /* threshold end gary level */
+    int g1;
+
+    /* threshold fallback gary level */
+    int g2;
+
+    /* left - right separate */
+    int sep_min_area;
+    int sep_accum_thr_ini;
+    double sep_accum_thr_size_max;
+
+    /* final smoothing of contour */
+    double nod_diam_mm;
+
+    /* debugging mode */
+    int dump;
+
+    /* debugging mode dump directory */
+    char *dir_dump;
+
+    /* results output directory */
+    char *dir_out;
+
+} mig_seg_data_t;
+
+/**************************************************/
+/* PRIVATE VARS */
+/**************************************************/
+
+/* logger for the whole cad */
+static Logger _log = Logger::getInstance ( CAD_LOGGER_NAME );
+
+/* global cad data pointer */
+static mig_cad_data_t *
+    _cad_data = NULL;
+
+/* segmentation data */
+static mig_seg_data_t
+    _seg_data;
+
+/* dump defines */
+#define MIG_SEG_DUMP_PASS1      0X0001
+#define MIG_SEG_DUMP_PASS2      0X0002
+#define MIG_SEG_DUMP_PASS3      0X0004
+#define MIG_SEG_DUMP_PASS5      0X0010
+#define MIG_SEG_DUMP_FINAL      0X0020
+
+/**************************************************/
+/* PRIVATE FUNCTIONS */
+/**************************************************/
+MIG_C_LINKAGE_START
+/* write raw segmented data to disk */
+    static int
+_raw_w ( char *name, mig_cad_data_t * cad_data );
+
+/* read raw segmented data from disk */
+static int
+_raw_r ( char *name, mig_cad_data_t * cad_data );
+
+/* thresholding clear border fill holes open */
+static int
+_pass1 ( void );
+
+/* left - right separation */
+static int
+_pass2 ( void );
+
+/* 3d labeling area cut bounding box */
+static int
+_pass3 ( void );
+
+/* masking cleanup */
+static int
+_pass5 ( void );
+
+static int
+_vol_cmp ( const void *a, const void *b );
+
+//static int
+//_separate_regsel ( const void *reg );
+
+MIG_C_LINKAGE_END
+/************************************************/
+/* EXPORTED FUNCTIONS */
+/************************************************/
+/* DLL entry for Windows */
+#if defined(WIN32)
+    BOOL APIENTRY
+DllMain ( HANDLE hModule, DWORD dwReason, LPVOID lpReserved )
+{
+    return TRUE;
+}
+
+#endif /* Win32 DLL */
+
+/************************************************/
+
+int
+mig_init ( mig_dic_t * params, mig_cad_data_t * data )
+{
+    int
+        filter_id;
+
+    /* setup logging system */
+    char *
+        _logger_ini_f_name = mig_ut_ini_getstring ( params, PARAM_LOG_INI, DEFAULT_PARAM_LOG_INI );
+
+    if ( _logger_ini_f_name != NULL )
+    {
+        try
+        {
+            PropertyConfigurator::doConfigure ( _logger_ini_f_name );
+        }
+        catch ( ... )
+        {
+            return MIG_ERROR_IO;
+        }
+    }
+
+    /* here we've got a logging system so log what we are doing */
+    LOG4CPLUS_DEBUG ( _log, " libmigseg -> mig_init starting..." );
+
+    /* cleanup _seg_data */
+    memset ( &_seg_data, 0x00, sizeof ( mig_seg_data_t ) );
+
+    /* copy dicom data pointer to local var */
+    _cad_data = data;
+
+    _seg_data.dump = mig_ut_ini_getint ( params, PARAM_SEG_DUMP, DEFAULT_PARAM_SEG_OPT_DUMP );
+    _seg_data.dir_dump = mig_ut_ini_getstring ( params, PARAM_SEG_DIR_DUMP, DEFAULT_PARAM_SEG_OPT_DIR_DUMP );
+    _seg_data.dir_out = mig_ut_ini_getstring ( params, PARAM_CAD_DIR_OUT, DEFAULT_PARAM_CAD_DIR_OUT );
+
+    filter_id = mig_ut_ini_getint ( params, PARAM_SEG_THR_FILTER, DEFAULT_PARAM_SEG_FILTER );
+    switch ( filter_id )
+    {
+    case 0:
+
+        _seg_data.flt_f = &mig_im_flt_copy;
+        break;
+
+    case 1:
+
+        _seg_data.flt_f = &mig_im_flt_med_cross_3;
+        break;
+
+    case 2:
+
+        _seg_data.flt_f = &mig_im_flt_med_cross_5;
+        break;
+
+    case 3:
+
+        _seg_data.flt_f = &mig_im_flt_med_box_3;
+        break;
+
+    case 4:
+
+        _seg_data.flt_f = &mig_im_flt_med_box_5;
+        break;
+
+    case 5:
+
+        _seg_data.flt_f = &mig_im_flt_tomita3;
+        break;
+
+    case 6:
+
+        _seg_data.flt_f = &mig_im_flt_tomita5;
+        break;
+
+    case 7:
+
+        _seg_data.flt_f = &mig_im_flt_nagao5;
+        break;
+
+    case 8:
+
+        _seg_data.flt_f = &mig_im_flt_nagao7;
+        break;
+
+    default:
+
+        _seg_data.flt_f = mig_im_flt_copy;
+        break;
+    }
+
+    _seg_data.filter_inplace = mig_ut_ini_getint ( params, PARAM_SEG_THR_FILTER_INPLACE, DEFAULT_PARAM_SEG_INPLACE );
+    _seg_data.g0 = mig_ut_ini_getint ( params, PARAM_SEG_THR_G0, DEFAULT_PARAM_SEG_G0 );
+    _seg_data.g1 = mig_ut_ini_getint ( params, PARAM_SEG_THR_G1, DEFAULT_PARAM_SEG_G1 );
+    _seg_data.g2 = mig_ut_ini_getint ( params, PARAM_SEG_THR_G2, DEFAULT_PARAM_SEG_G2 );
+    _seg_data.sep_min_area = mig_ut_ini_getint ( params, PARAM_SEG_SEP_MIN_AREA, DEFAULT_PARAM_SEG_SEP_MIN_AREA );
+    _seg_data.sep_accum_thr_ini = mig_ut_ini_getint ( params, PARAM_SEG_SEP_THR_INI, DEFAULT_PARAM_SEG_SEP_THR_INI );
+    _seg_data.sep_accum_thr_size_max =
+        mig_ut_ini_getdouble ( params, PARAM_SEG_SEP_THR_MAX_SIZE, DEFAULT_PARAM_SEG_SEP_THR_MAX );
+    _seg_data.nod_diam_mm = mig_ut_ini_getdouble ( params, PARAM_DET_SSPACE_MAX_DIAM, DEFAULT_PARAM_DET_SSPACE_MAX );
+
+    if ( _log.getLogLevel (  ) <= INFO_LOG_LEVEL )
+    {
+        std::stringstream os;
+        os << "Processing options : ";
+        os << "\n\t DUMP               : " << _seg_data.dump;
+        os << "\n\t DUMP DIR           : " << _seg_data.dir_dump;
+        os << "\n\t OUT DIR            : " << _seg_data.dir_out;
+        os << "\n\t FILTER INPLACE     : " << _seg_data.filter_inplace;
+        os << "\n\t FILTER ID          : " << filter_id;
+        os << "\n\t G0                 : " << _seg_data.g0;
+        os << "\n\t G1                 : " << _seg_data.g1;
+        os << "\n\t G2                 : " << _seg_data.g2;
+        os << "\n\t SEP ACCUM THR INI  : " << _seg_data.sep_accum_thr_ini;
+        os << "\n\t SEP ACCUM S MAX    : " << _seg_data.sep_accum_thr_size_max;
+        os << "\n\t NOD DIAMETER       : " << _seg_data.nod_diam_mm;
+        LOG4CPLUS_INFO ( _log, os.str (  ) );
+    }
+
+    LOG4CPLUS_DEBUG ( _log, " libmigseg -> mig_init done..." );
+    return MIG_OK;
+}
+
+/************************************************/
+int
+mig_run ( void )
+{
+    int
+        rc;
+    char
+        path[MAX_PATH];
+
+    LOG4CPLUS_DEBUG ( _log, " libmigseg -> mig_run starting..." );
+
+    /* check wether we already have segmented left and right lung on
+       disk. If so load from disk and skip segmenation */
+
+    snprintf ( path, MAX_PATH, "%s%c%s_%s_%s_seg",
+               _seg_data.dir_out, MIG_PATH_SEPARATOR,
+               _cad_data->dicom_data.patient_id, _cad_data->dicom_data.study_uid, _cad_data->dicom_data.series_uid );
+
+    LOG4CPLUS_INFO ( _log, " Trying to load lung from : " << path );
+    rc = _raw_r ( path, _cad_data );
+    if ( rc == MIG_OK )
+    {
+        LOG4CPLUS_INFO ( _log, " Loaded segmented data from disk..." );
+        return MIG_OK;
+    }
+    else
+    {
+        LOG4CPLUS_INFO ( _log, " Could not load segmentation data from disk... \
+                                Performing full segmentation" );
+    }
+
+    /* threshold + clear border + fill + open by disk approximation of radius 3 pixels */
+    rc = _pass1 (  );
+    if ( rc != MIG_OK )
+    {
+        LOG4CPLUS_ERROR ( _log, " Pass 1 : " << rc << ". Aborting..." );
+        return rc;
+    }
+
+    /* perform left - right lung separation */
+    rc = _pass2 (  );
+    if ( rc != MIG_OK )
+    {
+        LOG4CPLUS_ERROR ( _log, " Pass 2 : " << rc << ". Aborting..." );
+        return rc;
+    }
+
+    /* label 3d region and keep biggest regions for left and right lung */
+    rc = _pass3 (  );
+    if ( rc != MIG_OK )
+    {
+        LOG4CPLUS_ERROR ( _log, " Pass 3 : " << rc << ". Trying to continue..." );
+    }
+
+    /* cut bounding boxes + final masking */
+    rc = _pass5 (  );
+    if ( rc != MIG_OK )
+    {
+        LOG4CPLUS_ERROR ( _log, " Pass 5 : " << rc << ". Aborting..." );
+        return rc;
+    }
+
+    /* dump final results ( masked lungs ) to raw file */
+    snprintf ( path, MAX_PATH, "%s%c%s_%s_%s_seg",
+               _seg_data.dir_out, MIG_PATH_SEPARATOR,
+               _cad_data->dicom_data.patient_id, _cad_data->dicom_data.study_uid, _cad_data->dicom_data.series_uid );
+
+    LOG4CPLUS_DEBUG ( _log, " Dumping raw segmented lungs to : " << path );
+
+    _raw_w ( path, _cad_data );
+
+    /* if in debug mode dump final results to file */
+    if ( _seg_data.dump & MIG_SEG_DUMP_FINAL )
+    {
+        /* dump segmented lungs to MATLAB mat file */
+
+        /* RIGHT LUNG */
+        snprintf ( path, MAX_PATH, "%s%c%s_%s_%s_r_seg.mat",
+                   _seg_data.dir_out, MIG_PATH_SEPARATOR,
+                   _cad_data->dicom_data.patient_id,
+                   _cad_data->dicom_data.study_uid, _cad_data->dicom_data.series_uid );
+
+        rc = mig_io_mat_w_ct ( path, _cad_data->stack_r, &( _cad_data->dicom_data ),
+                               &( _cad_data->stack_r_s ), &( _cad_data->stack_s ), &( _cad_data->bb[0] ) );
+
+	if ( rc == -1 )
+	{
+	  LOG4CPLUS_ERROR ( _log, " mig_io_mat_w_ct : dump final results right error..." );
+	}
+
+        /* LEFT LUNG */
+        snprintf ( path, MAX_PATH, "%s%c%s_%s_%s_l_seg.mat",
+                   _seg_data.dir_out, MIG_PATH_SEPARATOR,
+                   _cad_data->dicom_data.patient_id,
+                   _cad_data->dicom_data.study_uid, _cad_data->dicom_data.series_uid );
+
+        rc = mig_io_mat_w_ct ( path, _cad_data->stack_l, &( _cad_data->dicom_data ),
+                               &( _cad_data->stack_l_s ), &( _cad_data->stack_s ), &( _cad_data->bb[1] ) );
+
+	if ( rc == -1 )
+	{
+	  LOG4CPLUS_ERROR ( _log, " mig_io_mat_w_ct : dump final results left error..." );
+	}
+
+    }
+
+    LOG4CPLUS_DEBUG ( _log, " libmigseg -> mig_run done..." );
+    return MIG_OK;
+}
+
+/**************************************************/
+void
+mig_cleanup ( void *data )
+{
+    if ( data )
+        free ( data );
+}
+
+/**************************************************/
+void
+mig_info ( mig_dll_info_t * info )
+{
+
+}
+
+/**************************************************/
+/* PRIVATE FUNCTIONS */
+/**************************************************/
+
+/* write raw segmented data to disk */
+static int
+_raw_w ( char *name, mig_cad_data_t * cad_data )
+{
+    int
+        fid = -1, len = -1;
+
+    fid = mig_open ( name, MIG_O_BINARY | MIG_O_WRONLY | MIG_O_CREAT | MIG_O_TRUNC );
+    if ( fid == -1 )
+        return MIG_ERROR_IO;
+
+    /* write whole stack size */
+    len = mig_write ( fid, ( const void * ) &( cad_data->stack_s ), sizeof ( mig_size_t ) );
+    if ( len != sizeof ( mig_size_t ) )
+        goto error;
+
+    /* write right stack size */
+    len = mig_write ( fid, ( const void * ) &( cad_data->stack_r_s ), sizeof ( mig_size_t ) );
+    if ( len != sizeof ( mig_size_t ) )
+        goto error;
+
+    /* write right stack bounding box */
+    len = mig_write ( fid, ( const void * ) &( cad_data->bb[0] ), sizeof ( mig_roi_t ) );
+    if ( len != sizeof ( mig_roi_t ) )
+        goto error;
+
+    /* write right stack data */
+    len = mig_write ( fid, ( const void * ) cad_data->stack_r, cad_data->stack_r_s.size_stack );
+    if ( len != cad_data->stack_r_s.size_stack )
+        goto error;
+
+    /* write left stack size */
+    len = mig_write ( fid, ( const void * ) &( cad_data->stack_l_s ), sizeof ( mig_size_t ) );
+    if ( len != sizeof ( mig_size_t ) )
+        goto error;
+
+    /* write left stack bounding box */
+    len = mig_write ( fid, ( const void * ) &( cad_data->bb[1] ), sizeof ( mig_roi_t ) );
+    if ( len != sizeof ( mig_roi_t ) )
+        goto error;
+
+    /* write left stack data */
+    len = mig_write ( fid, ( const void * ) cad_data->stack_l, cad_data->stack_l_s.size_stack );
+    if ( len != cad_data->stack_l_s.size_stack )
+        goto error;
+
+    /* close */
+    mig_close ( fid );
+    return MIG_OK;
+
+  error:
+
+    LOG4CPLUS_ERROR ( _log, " Error writing to : " << name );
+    if ( fid > 0 )
+        mig_close ( fid );
+
+    return MIG_ERROR_IO;
+}
+
+/**************************************************/
+/* read raw segmented data from disk */
+static int
+_raw_r ( char *name, mig_cad_data_t * cad_data )
+{
+    int
+        fid = -1, len = -1;
+
+    cad_data->stack_l = cad_data->stack_r = NULL;
+
+    fid = mig_open ( name, MIG_O_BINARY | MIG_O_RDONLY );
+    if ( fid == -1 )
+        return MIG_ERROR_IO;
+
+    len = mig_read ( fid, ( void * ) &( cad_data->stack_s ), sizeof ( mig_size_t ) );
+    if ( len != sizeof ( mig_size_t ) )
+        goto error;
+
+    /* read right stack size */
+    len = mig_read ( fid, ( void * ) &cad_data->stack_r_s, sizeof ( mig_size_t ) );
+    if ( len != sizeof ( mig_size_t ) )
+        goto error;
+
+    /* read right stack bounding box */
+    len = mig_read ( fid, ( void * ) &cad_data->bb[0], sizeof ( mig_roi_t ) );
+    if ( len != sizeof ( mig_roi_t ) )
+        goto error;
+
+    /* read right stack data */
+    cad_data->stack_r = ( Mig16u * ) mig_malloc ( cad_data->stack_r_s.size_stack );
+    if ( cad_data->stack_r == NULL )
+        goto error;
+
+    len = mig_read ( fid, ( void * ) cad_data->stack_r, cad_data->stack_r_s.size_stack );
+    if ( len != cad_data->stack_r_s.size_stack )
+        goto error;
+
+    /* read left stack size */
+    len = mig_read ( fid, ( void * ) &cad_data->stack_l_s, sizeof ( mig_size_t ) );
+    if ( len != sizeof ( mig_size_t ) )
+        goto error;
+
+    /* read left stack bounding box */
+    len = mig_read ( fid, ( void * ) &cad_data->bb[1], sizeof ( mig_roi_t ) );
+    if ( len != sizeof ( mig_roi_t ) )
+        goto error;
+
+    cad_data->stack_l = ( Mig16u * ) mig_malloc ( cad_data->stack_l_s.size_stack );
+    if ( cad_data->stack_l == NULL )
+        goto error;
+
+    /* read left stack data */
+    len = mig_read ( fid, ( void * ) cad_data->stack_l, cad_data->stack_l_s.size_stack );
+    if ( len != cad_data->stack_l_s.size_stack )
+        goto error;
+
+    /* close */
+    mig_close ( fid );
+    return MIG_OK;
+
+  error:
+
+    if ( fid > 0 )
+        mig_close ( fid );
+
+    if ( cad_data->stack_l )
+        mig_free ( cad_data->stack_l );
+    cad_data->stack_l = NULL;
+
+    if ( cad_data->stack_r )
+        mig_free ( cad_data->stack_r );
+    cad_data->stack_r = NULL;
+
+    mig_memz ( &cad_data->stack_l_s, sizeof ( mig_size_t ) );
+    mig_memz ( &cad_data->stack_r_s, sizeof ( mig_size_t ) );
+    mig_memz ( &cad_data->bb[0], sizeof ( mig_roi_t ) );
+    mig_memz ( &cad_data->bb[1], sizeof ( mig_roi_t ) );
+
+    return MIG_ERROR_IO;
+}
+
+/********************************************************/
+/* filter + threshold + negate + clear border + fill holes + open
+   The binary masks after thresholding are going to be
+   stored in _data.masks. Thresholding is done on the
+   original images stack. */
+static int
+_pass1 (  )
+{
+    int
+        rc,
+        i;
+    int
+        Threshold;
+    int
+        StartGrayLevel;
+    int
+        EndGrayLevel;
+    int
+        FixedGrayLevel;
+    Mig16u *
+        SrcSlice = NULL;
+    Mig16u *
+        FilteredSlice = NULL;
+    Mig8u *
+        MasksSlice = NULL;
+
+    LOG4CPLUS_DEBUG ( _log, " _pass1 " );
+
+    /* allocate and zero masks memory */
+    _seg_data.masks = ( Mig8u * ) mig_calloc ( _cad_data->stack_s.dim_stack, sizeof ( Mig8u ) );
+    if ( _seg_data.masks == NULL )
+    {
+        LOG4CPLUS_FATAL ( _log, " _pass_1 " << " Memory " );
+        return MIG_ERROR_MEMORY;
+    }
+
+    /* fill size structure for masks */
+    memcpy ( &( _seg_data.masks_s ), &( _cad_data->stack_s ), sizeof ( mig_size_t ) );
+
+    _seg_data.masks_s.size = _seg_data.masks_s.dim * sizeof ( Mig8u );
+    _seg_data.masks_s.size_stack = _seg_data.masks_s.dim_stack * sizeof ( Mig8u );
+
+    /* find suitable threshold using ridler algorithm :
+       values for thresholding are given in Hounsfield Units
+       inside .ini file so we need to transform them
+       to Gray Level values using the same transformation used
+       while loading original DICOM images */
+
+    StartGrayLevel = 0;
+    //(int) mig_im_util_h2g ( (double) _seg_data.g0 , 0.0 , 65535.0 , 
+    //                    (double) _seg_data.wc , (double) _seg_data.ww );
+
+    EndGrayLevel = 65535;
+    //(int) mig_im_util_h2g ( (double) _seg_data.g1 , 0.0 , 65535.0 ,
+    //                    (double) _seg_data.wc , (double) _seg_data.ww );
+
+    FixedGrayLevel = 32755;
+    //(int) mig_im_util_h2g ( (double) _seg_data.g2 , 0.0 , 65535.0 ,
+    //                    (double) _seg_data.wc , (double) _seg_data.ww );
+
+    Threshold = FixedGrayLevel;
+
+    /***************************************************/
+    /* threshold stack one slice at a time */
+    FilteredSlice = ( Mig16u * ) malloc ( _cad_data->stack_s.size );
+    if ( FilteredSlice == NULL )
+    {
+        LOG4CPLUS_FATAL ( _log, " _pass_1 " << " Memory " );
+        goto out;
+    }
+
+    /* initalize data pointers */
+    SrcSlice = _cad_data->stack;
+    MasksSlice = _seg_data.masks;
+    for ( i = 0; i < _seg_data.masks_s.slices; ++i )
+    {
+        /* filter input slice */
+        _seg_data.flt_f ( SrcSlice, FilteredSlice, _cad_data->stack_s.w, _cad_data->stack_s.h );
+
+        /* find suitable threshold using automatic algorithm */
+        rc = mig_im_thr ( FilteredSlice, _cad_data->stack_s.dim, StartGrayLevel, EndGrayLevel, &Threshold );
+        if ( rc == MIG_ERROR_MEMORY )
+        {
+            LOG4CPLUS_FATAL ( _log, " _pass1 " << " Memory " );
+            goto out;
+        }
+
+        /* if a suitable threshold could not be found use fixed predefined threshold. */
+        if ( rc == MIG_ERROR_INTERNAL )
+        {
+            Threshold = FixedGrayLevel;
+        }
+
+        /* threshold single slice */
+        mig_im_thr_16u_inv ( FilteredSlice, MasksSlice, _cad_data->stack_s.dim, Threshold );
+
+        /***************************************************/
+        /* clear border */
+        mig_im_bin_clb_8u_i ( MasksSlice, _seg_data.masks_s.w, _seg_data.masks_s.h, 8 );
+
+        /***************************************************/
+        /* fill holes */
+        mig_im_bin_fill_8u_i ( MasksSlice, _seg_data.masks_s.w, _seg_data.masks_s.h, 8 );
+
+        /***************************************************/
+        /* opening */
+        mig_im_mor_erode_disk ( MasksSlice, _seg_data.masks_s.w, _seg_data.masks_s.h, 3, MIG_DISK_FULL );
+
+        mig_im_mor_dilate_disk ( MasksSlice, _seg_data.masks_s.w, _seg_data.masks_s.h, 3, MIG_DISK_FULL );
+
+        /* overwrite original with filter if asked so */
+        if ( _seg_data.filter_inplace == 1 )
+            memcpy ( SrcSlice, FilteredSlice, _cad_data->stack_s.size );
+        /* clear filtered */
+        memset ( FilteredSlice, 0, _cad_data->stack_s.size );
+
+        /* advance to next slices */
+        SrcSlice += _cad_data->stack_s.dim;
+        MasksSlice += _seg_data.masks_s.dim;
+    }
+
+    free ( FilteredSlice );
+
+    /* dump masks if asked to */
+    if ( _seg_data.dump & MIG_SEG_DUMP_PASS1 )
+    {
+        char
+            path[MAX_PATH];
+
+        snprintf ( path, MAX_PATH, "%s%c%s_%s_%s_seg_pass_01.mat",
+                   _seg_data.dir_dump, MIG_PATH_SEPARATOR,
+                   _cad_data->dicom_data.patient_id,
+                   _cad_data->dicom_data.study_uid, _cad_data->dicom_data.series_uid );
+
+        rc = mig_io_mat_w_masks ( path, _seg_data.masks,
+                                  &( _cad_data->dicom_data ), &( _seg_data.masks_s ), &( _seg_data.masks_s ), NULL );
+    }
+
+    return MIG_OK;
+
+/* in case of error */
+  out:
+
+    if ( _seg_data.masks )
+    {
+        mig_free ( _seg_data.masks );
+        _seg_data.masks = NULL;
+        memset ( &( _seg_data.masks_s ), 0, sizeof ( mig_size_t ) );
+    }
+
+    if ( FilteredSlice )
+        free ( FilteredSlice );
+
+    return rc;
+}
+
+/******************************************************/
+/* separate masks into left and right parts.
+   The input binary masks used are taken from _data.masks.
+   The results, if everything works fine, are stored in
+   _data.masks_l and _data.masks_r. */
+static int
+_pass2 (  )
+{
+    LOG4CPLUS_DEBUG ( _log, " mig_seg.cpp : _pass2 " );
+
+    Mig8u *
+        accum = NULL;
+    Mig8u *
+        msk_l = NULL, *msk_r = NULL;
+    int
+        i,
+        rc = MIG_OK;
+    int
+        start_slice,
+        end_slice;
+
+    /* accumulator image : sum of all images inside the binary stack.
+       N.B. We could produce accumulator
+       from just part of the stack, e.g. while
+       lung area is growing. This way some
+       noise at the bottom of the lung could be eliminated */
+    accum = ( Mig8u * ) mig_calloc ( _seg_data.masks_s.dim, sizeof ( Mig8u ) );
+    if ( accum == NULL )
+    {
+        rc = MIG_ERROR_MEMORY;
+        goto out;
+    }
+
+    /* allocat memory for left and right masks */
+    msk_l = ( Mig8u * ) mig_calloc ( _seg_data.masks_s.dim, sizeof ( Mig8u ) );
+    if ( msk_l == NULL )
+    {
+        rc = MIG_ERROR_MEMORY;
+        goto out;
+    }
+
+    msk_r = ( Mig8u * ) mig_calloc ( _seg_data.masks_s.dim, sizeof ( Mig8u ) );
+    if ( msk_r == NULL )
+    {
+        rc = MIG_ERROR_MEMORY;
+        goto out;
+    }
+
+    /* generate accumulation image N.B. Maximum value for an accumulator cell
+       is 255 so if there is overflow we clip the value to 0xFF (255). */
+    start_slice = ( int ) ( _seg_data.masks_s.slices * 0.3 );
+    end_slice = ( int ) ( _seg_data.masks_s.slices * 0.2 * 4.0 );
+
+    for ( i = start_slice; i <= end_slice; ++i )
+    {
+        mig_im_alg_add_bin ( _seg_data.masks + i * _seg_data.masks_s.dim, accum, _seg_data.masks_s.dim );
+    }
+
+    /* generate separation masks */
+    rc = mig_seg_sep ( accum, _seg_data.masks_s.w, _seg_data.masks_s.h, msk_l, msk_r );
+    if ( rc != MIG_OK )
+        goto out;
+
+    /* allocate memory for left and right stacks */
+    _seg_data.masks_l = ( Mig8u * ) mig_malloc ( _seg_data.masks_s.size_stack );
+    if ( _seg_data.masks_l == NULL )
+    {
+        rc = MIG_ERROR_MEMORY;
+        goto out;
+    }
+
+    _seg_data.masks_r = ( Mig8u * ) mig_malloc ( _seg_data.masks_s.size_stack );
+    if ( _seg_data.masks_r == NULL )
+    {
+        rc = MIG_ERROR_MEMORY;
+        goto out;
+    }
+
+    /* copy right masks data */
+    mig_memcpy ( _seg_data.masks, _seg_data.masks_r, _seg_data.masks_s.size_stack );
+
+    /* copy right masks dimensions */
+    mig_memcpy ( &_seg_data.masks_s, &_seg_data.masks_r_s, sizeof ( mig_size_t ) );
+
+    /* copy left masks data */
+    mig_memcpy ( _seg_data.masks, _seg_data.masks_l, _seg_data.masks_s.size_stack );
+
+    /* copy left masks dimensions */
+    mig_memcpy ( &_seg_data.masks_s, &_seg_data.masks_l_s, sizeof ( mig_size_t ) );
+
+    /* produce the left and right stacks */
+    for ( i = 0; i < _seg_data.masks_s.slices; ++i )
+    {
+        /* right */
+        mig_im_bin_and ( msk_r, _seg_data.masks_r + i * _seg_data.masks_r_s.dim, _seg_data.masks_r_s.dim );
+
+        /* left */
+        mig_im_bin_and ( msk_l, _seg_data.masks_l + i * _seg_data.masks_l_s.dim, _seg_data.masks_l_s.dim );
+    }
+
+    /* if everything went all right we can free the non-separated masks */
+    mig_free ( _seg_data.masks );
+    _seg_data.masks = NULL;
+    mig_memz ( &_seg_data.masks_s, sizeof ( mig_size_t ) );
+
+    /* dump left and right stacks if asked to */
+    if ( _seg_data.dump & MIG_SEG_DUMP_PASS2 )
+    {
+        char
+            path[MAX_PATH];
+
+        snprintf ( path, MAX_PATH, "%s%c%s_%s_%s_seg_pass_02_r.mat",
+                   _seg_data.dir_dump, MIG_PATH_SEPARATOR,
+                   _cad_data->dicom_data.patient_id,
+                   _cad_data->dicom_data.study_uid, _cad_data->dicom_data.series_uid );
+
+        rc = mig_io_mat_w_masks ( path, _seg_data.masks_r,
+                                  &( _cad_data->dicom_data ), &( _seg_data.masks_r_s ), &( _seg_data.masks_s ), NULL );
+
+        snprintf ( path, MAX_PATH, "%s%c%s_%s_%s_seg_pass_02_l.mat",
+                   _seg_data.dir_dump, MIG_PATH_SEPARATOR,
+                   _cad_data->dicom_data.patient_id,
+                   _cad_data->dicom_data.study_uid, _cad_data->dicom_data.series_uid );
+
+        rc = mig_io_mat_w_masks ( path, _seg_data.masks_l,
+                                  &( _cad_data->dicom_data ),
+                                  &( _seg_data.masks_l_s ), &( _seg_data.masks_l_s ), NULL );
+    }
+
+    /* free local vars */
+    mig_free ( accum );
+    mig_free ( msk_l );
+    mig_free ( msk_r );
+
+    return MIG_OK;
+
+  out:
+
+    if ( _seg_data.masks_l )
+        mig_free ( _seg_data.masks_l );
+    mig_memz ( &_seg_data.masks_l_s, sizeof ( mig_size_t ) );
+
+    if ( _seg_data.masks_r )
+        mig_free ( _seg_data.masks_r );
+    mig_memz ( &_seg_data.masks_r_s, sizeof ( mig_size_t ) );
+
+    if ( accum )
+        mig_free ( accum );
+
+    if ( msk_l )
+        mig_free ( msk_l );
+
+    if ( msk_r )
+        mig_free ( msk_r );
+
+    return rc;
+}
+
+/***********************************************************/
+static int
+_pass3 (  )
+{
+    LOG4CPLUS_DEBUG ( _log, " mig_seg.cpp : _pass3 " );
+
+    int
+        rc = MIG_OK, cc = 0;
+
+    mig_lst_t *
+        regs = NULL;
+    mig_reg_props_t *
+        props = NULL;
+
+    Mig8u *
+        msk_l_tmp = NULL;
+    Mig8u *
+        msk_r_tmp = NULL;
+
+    std::stringstream os;
+
+    /* 3D label right */
+    rc = mig_im_lab_union_3d_fast ( _seg_data.masks_r,
+                                    _seg_data.masks_r_s.w, _seg_data.masks_r_s.h, _seg_data.masks_r_s.slices, &cc );
+    if ( rc != MIG_OK )
+        goto error;
+
+    LOG4CPLUS_DEBUG ( _log, " Label 3D right masks. Num regions : " << cc );
+
+    /* calculate region properties -> area , min , max coordinates */
+    rc = mig_reg_prop_vol ( _seg_data.masks_r, _seg_data.masks_r_s.w,
+                            _seg_data.masks_r_s.h, _seg_data.masks_r_s.slices, &regs, cc );
+    if ( rc != MIG_OK )
+        goto error;
+
+    /* order regions by decreasing sizes */
+    mig_lst_sort ( regs, &_vol_cmp );
+
+    /* get the biggest region */
+    props = ( mig_reg_props_t * ) mig_lst_peek_head ( regs );
+
+    /* set label on */
+    mig_im_lab_on_i ( _seg_data.masks_r, _seg_data.masks_r_s.dim_stack, props->id );
+
+    /* save right lung bounding box inside _cad_data */
+    _cad_data->bb[0].x0 = props->min_coord[0];
+    _cad_data->bb[0].x1 = props->max_coord[0];
+    _cad_data->bb[0].y0 = props->min_coord[1];
+    _cad_data->bb[0].y1 = props->max_coord[1];
+    _cad_data->bb[0].z0 = props->min_coord[2];
+    _cad_data->bb[0].z1 = props->max_coord[2];
+    _cad_data->bb[0].w = _cad_data->bb[0].x1 - _cad_data->bb[0].x0 + 1;
+    _cad_data->bb[0].h = _cad_data->bb[0].y1 - _cad_data->bb[0].y0 + 1;
+    _cad_data->bb[0].z = _cad_data->bb[0].z1 - _cad_data->bb[0].z0 + 1;
+
+    /* modify right lung masks to fit into bounding box */
+    msk_r_tmp = ( Mig8u * )
+        mig_malloc ( _cad_data->bb[0].w * _cad_data->bb[0].h * _cad_data->bb[0].z * sizeof ( Mig8u ) );
+    if ( msk_r_tmp == NULL )
+    {
+        rc = MIG_ERROR_MEMORY;
+        goto error;
+    }
+
+    mig_im_bb_cut_8u ( _seg_data.masks_r, msk_r_tmp, &_seg_data.masks_r_s, &_cad_data->bb[0] );
+
+    mig_free ( _seg_data.masks_r );
+    _seg_data.masks_r = msk_r_tmp;
+    msk_r_tmp = NULL;
+
+    /* copy new dimensions */
+    _seg_data.masks_r_s.h = _cad_data->bb[0].h;
+    _seg_data.masks_r_s.w = _cad_data->bb[0].w;
+    _seg_data.masks_r_s.dim = _cad_data->bb[0].h * _cad_data->bb[0].w;
+    _seg_data.masks_r_s.size = _seg_data.masks_r_s.dim * sizeof ( Mig8u );
+    _seg_data.masks_r_s.slices = _cad_data->bb[0].z;
+    _seg_data.masks_r_s.dim_stack = _seg_data.masks_r_s.size * _seg_data.masks_r_s.slices;
+    _seg_data.masks_r_s.size_stack = _seg_data.masks_r_s.dim_stack * sizeof ( Mig8u );
+
+    /* dump data to log file */
+    if ( _log.getLogLevel (  ) <= DEBUG_LOG_LEVEL )
+    {
+        os << " Selected region properties : ";
+        os << " \nid   : " << props->id;
+        os << " \nsize : " << props->area;
+        os << " \nmin [x][y][z] : " << props->min_coord[0] << " " << props->min_coord[1] << " " << props->min_coord[2];
+        os << " \nmax [x][y][z] : " << props->max_coord[0] << " " << props->max_coord[1] << " " << props->max_coord[2];
+        LOG4CPLUS_INFO ( _log, os.str (  ) );
+    }
+
+    /* clean up region properties list */
+    mig_lst_free ( regs );
+
+    /***************************************************************/
+    /* 3D label left */
+
+    rc = mig_im_lab_union_3d_fast ( _seg_data.masks_l,
+                                    _seg_data.masks_l_s.w, _seg_data.masks_l_s.h, _seg_data.masks_l_s.slices, &cc );
+    if ( rc != MIG_OK )
+        goto error;
+
+    LOG4CPLUS_DEBUG ( _log, " Label 3D left masks. Num regions : " << cc );
+
+    /* calculate region properties -> area , min , max coordinates */
+    rc = mig_reg_prop_vol ( _seg_data.masks_l,
+                            _seg_data.masks_l_s.w, _seg_data.masks_l_s.h, _seg_data.masks_l_s.slices, &regs, cc );
+    if ( rc != MIG_OK )
+        goto error;
+
+    /* order regions by decreasing sizes */
+    mig_lst_sort ( regs, &_vol_cmp );
+
+    /* get the biggest region */
+    props = ( mig_reg_props_t * ) mig_lst_peek_head ( regs );
+
+    /* set label on */
+    mig_im_lab_on_i ( _seg_data.masks_l, _seg_data.masks_l_s.dim_stack, props->id );
+
+    /* save left lung bounding box inside _cad_data */
+    _cad_data->bb[1].x0 = props->min_coord[0];
+    _cad_data->bb[1].x1 = props->max_coord[0];
+    _cad_data->bb[1].y0 = props->min_coord[1];
+    _cad_data->bb[1].y1 = props->max_coord[1];
+    _cad_data->bb[1].z0 = props->min_coord[2];
+    _cad_data->bb[1].z1 = props->max_coord[2];
+    _cad_data->bb[1].w = _cad_data->bb[1].x1 - _cad_data->bb[1].x0 + 1;
+    _cad_data->bb[1].h = _cad_data->bb[1].y1 - _cad_data->bb[1].y0 + 1;
+    _cad_data->bb[1].z = _cad_data->bb[1].z1 - _cad_data->bb[1].z0 + 1;
+
+    /* modify left lung masks to fit into bounding box */
+    msk_l_tmp = ( Mig8u * )
+        mig_malloc ( _cad_data->bb[1].w * _cad_data->bb[1].h * _cad_data->bb[1].z * sizeof ( Mig8u ) );
+    if ( msk_l_tmp == NULL )
+    {
+        rc = MIG_ERROR_MEMORY;
+        goto error;
+    }
+
+    mig_im_bb_cut_8u ( _seg_data.masks_l, msk_l_tmp, &_seg_data.masks_l_s, &_cad_data->bb[1] );
+
+    mig_free ( _seg_data.masks_l );
+    _seg_data.masks_l = msk_l_tmp;
+    msk_l_tmp = NULL;
+
+    /* copy new dimensions */
+    _seg_data.masks_l_s.h = _cad_data->bb[1].h;
+    _seg_data.masks_l_s.w = _cad_data->bb[1].w;
+    _seg_data.masks_l_s.dim = _cad_data->bb[1].h * _cad_data->bb[1].w;
+    _seg_data.masks_l_s.size = _seg_data.masks_l_s.dim * sizeof ( Mig8u );
+    _seg_data.masks_l_s.slices = _cad_data->bb[1].z;
+    _seg_data.masks_l_s.dim_stack = _seg_data.masks_l_s.size * _seg_data.masks_l_s.slices;
+    _seg_data.masks_l_s.size_stack = _seg_data.masks_l_s.dim_stack * sizeof ( Mig8u );
+
+    /* dump info */
+    if ( _log.getLogLevel (  ) <= DEBUG_LOG_LEVEL )
+    {
+        os.str ( "" );
+        os << " Selected region properties : ";
+        os << " \nid   : " << props->id;
+        os << " \nsize : " << props->area;
+        os << " \nmin [x][y][z] : " << props->min_coord[0] << " " << props->min_coord[1] << " " << props->min_coord[2];
+        os << " \nmax [x][y][z] : " << props->max_coord[0] << " " << props->max_coord[1] << " " << props->max_coord[2];
+        LOG4CPLUS_INFO ( _log, os.str (  ) );
+    }
+
+    /* clean up */
+    mig_lst_free ( regs );
+
+    /********************************************************/
+    /* dump left and right masks stacks if asked to */
+    if ( _seg_data.dump & MIG_SEG_DUMP_PASS3 )
+    {
+
+        char
+            path[MAX_PATH];
+
+        snprintf ( path, MAX_PATH, "%s%c%s_%s_%s_seg_pass_03_r.mat",
+                   _seg_data.dir_dump, MIG_PATH_SEPARATOR,
+                   _cad_data->dicom_data.patient_id,
+                   _cad_data->dicom_data.study_uid, _cad_data->dicom_data.series_uid );
+
+        rc = mig_io_mat_w_masks ( path, _seg_data.masks_r,
+                                  &( _cad_data->dicom_data ), &( _seg_data.masks_r_s ), &( _seg_data.masks_s ), NULL );
+
+        snprintf ( path, MAX_PATH, "%s%c%s_%s_%s_seg_pass_03_l.mat",
+                   _seg_data.dir_dump, MIG_PATH_SEPARATOR,
+                   _cad_data->dicom_data.patient_id,
+                   _cad_data->dicom_data.study_uid, _cad_data->dicom_data.series_uid );
+
+        rc = mig_io_mat_w_masks ( path, _seg_data.masks_l,
+                                  &( _cad_data->dicom_data ), &( _seg_data.masks_l_s ), &( _seg_data.masks_s ), NULL );
+    }
+
+    return MIG_OK;
+
+  error:
+
+    if ( regs )
+        mig_lst_free ( regs );
+
+    if ( msk_l_tmp )
+        mig_free ( msk_l_tmp );
+
+    if ( msk_r_tmp )
+        mig_free ( msk_r_tmp );
+
+    return rc;
+}
+
+/***********************************************************/
+/* masking + cleanup */
+static int
+_pass5 (  )
+{
+    int
+        rc;
+
+    LOG4CPLUS_DEBUG ( _log, " mig_seg.cpp : _pass5 " );
+
+    /********************************************************/
+    /* right lung */
+    _cad_data->stack_r = ( Mig16u * ) mig_calloc ( _seg_data.masks_r_s.dim_stack, sizeof ( Mig16u ) );
+    if ( _cad_data->stack_r == NULL )
+    {
+        rc = MIG_ERROR_MEMORY;
+        goto error;
+    }
+
+    /* cut out region */
+    mig_im_bb_cut_16u ( _cad_data->stack, _cad_data->stack_r, &_cad_data->stack_s, &_cad_data->bb[0] );
+
+    /* copy size data */
+    mig_memcpy ( &_seg_data.masks_r_s, &_cad_data->stack_r_s, sizeof ( mig_size_t ) );
+
+    _cad_data->stack_r_s.size <<= 1;
+    _cad_data->stack_r_s.size_stack = _cad_data->stack_r_s.size * _cad_data->stack_r_s.slices;
+
+    /* free right masks */
+    mig_free ( _seg_data.masks_r );
+    _seg_data.masks_r = NULL;
+    mig_memz ( &_seg_data.masks_r_s, sizeof ( mig_size_t ) );
+
+    /********************************************************/
+    /* left lung */
+    _cad_data->stack_l = ( Mig16u * ) mig_calloc ( _seg_data.masks_l_s.dim_stack, sizeof ( Mig16u ) );
+    if ( _cad_data->stack_l == NULL )
+    {
+        rc = MIG_ERROR_MEMORY;
+        goto error;
+    }
+
+    /* cut out region */
+    mig_im_bb_cut_16u ( _cad_data->stack, _cad_data->stack_l, &_cad_data->stack_s, &_cad_data->bb[1] );
+
+    /* copy size data */
+    mig_memcpy ( &_seg_data.masks_l_s, &_cad_data->stack_l_s, sizeof ( mig_size_t ) );
+
+    _cad_data->stack_l_s.size <<= 1;
+    _cad_data->stack_l_s.size_stack = _cad_data->stack_l_s.size * _cad_data->stack_l_s.slices;
+
+    /* free left masks */
+    mig_free ( _seg_data.masks_l );
+    _seg_data.masks_l = NULL;
+    mig_memz ( &_seg_data.masks_l_s, sizeof ( mig_size_t ) );
+
+    return MIG_OK;
+
+  error:
+
+    if ( _cad_data->stack_l )
+        mig_free ( _cad_data->stack_l );
+    _cad_data->stack_l = NULL;
+    mig_memz ( &_cad_data->stack_l_s, sizeof ( mig_size_t ) );
+
+    if ( _cad_data->stack_r )
+        mig_free ( _cad_data->stack_r );
+    _cad_data->stack_r = NULL;
+    mig_memz ( &_cad_data->stack_r_s, sizeof ( mig_size_t ) );
+
+    mig_memz ( &( _cad_data->bb ), sizeof ( mig_roi_t ) << 1 );
+
+    return rc;
+}
+
+/***********************************************************/
+static int
+_vol_cmp ( const void *a, const void *b )
+{
+    mig_lst_node *
+        node1 = *( ( mig_lst_node ** ) a );
+    mig_lst_node *
+        node2 = *( ( mig_lst_node ** ) b );
+    mig_reg_props_t *
+        tmp1 = ( mig_reg_props_t * ) node1->data;
+    mig_reg_props_t *
+        tmp2 = ( mig_reg_props_t * ) node2->data;
+
+    if ( ( tmp1->area ) == ( tmp2->area ) )
+        return 0;
+
+    if ( ( tmp1->area ) < ( tmp2->area ) )
+        return 1;
+
+    return -1;
+}

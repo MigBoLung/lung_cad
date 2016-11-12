@@ -1,0 +1,46 @@
+10
+
+dir
+1109
+svn+ssh://ferri@mig154.df.unibo.it/svn/lung/trunk/extern/inc
+svn+ssh://ferri@mig154.df.unibo.it/svn/lung
+
+
+
+2010-08-20T15:39:18.888295Z
+1065
+ferri
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+fa9821e3-821e-0410-925d-c9990b472217
+
+libtiff
+dir
+
+sqlite
+dir
+
+dcmtk
+dir
+
+eigen
+dir
+
+log4cplus
+dir
+
+libpthread
+dir
+

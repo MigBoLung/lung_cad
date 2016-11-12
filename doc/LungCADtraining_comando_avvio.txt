@@ -1,0 +1,11 @@
+0.6 D:\MIG\DB\LIDC_NEW\dirlist_all_windows.txt D:\data_cad2d\LIDC_NEW\firstgroup_20091001\GT_all\GT_min4 d:\MIG\trabajo\LUNG_training\provaall_
+
+
+D:\MIG\LUNG_C\build>training_d.exe 0.6 D:\MIG\DB\LIDC_NEW\dirlist_all_windows.txt D:\data_cad2d\LIDC_NEW\firstg
+roup_20091001\GT_all\GT_min4 D:\MIG\trabajo\LUNG_training\provaall_
+
+
+D:\MIG\LUNG_C\build>training_d.exe 0.6 d:\MIG\DB\LIDC_NEW\dirlist_all_windows_VERBATIM_fold1.txt D:\data_cad2d\LIDC_NEW\firstgroup_20091001\GT_all\GT_min3\ G:\MIG\trabajo\data\results_fold1\ d:\MIG\trabajo\LUNG_training\fold1_al3_
+
+
+

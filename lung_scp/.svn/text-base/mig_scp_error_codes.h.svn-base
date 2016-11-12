@@ -1,0 +1,20 @@
+#ifndef __ERROR_CODES_H__
+#define __ERROR_CODES_H__
+
+#define MIG_SCP_OK			0
+#define MIG_SCP_ERROR_ENOMEM            1
+#define MIG_SCP_ERROR_IO		2
+#define MIG_SCP_ERROR_EINVAL            3
+#define MIG_SCP_ERROR_LOAD_PARAMS       4
+#define MIG_SCP_ERROR_PARAMS_MISSING    5
+#define MIG_SCP_ERROR_LOAD_LOG          6
+#define MIG_SCP_ERROR_NETWORK_INIT      7
+
+#define MIG_SCP_ERROR_DCM_DICTIONARY    10
+#define MIG_SCP_ERROR_DCM_NETWORK_INIT  11
+#define MIG_SCP_ERROR_DCM_ASC_CONFIG    12
+#define MIG_SCP_ERROR_DCM_TAG_MISSING   13
+#define MIG_SCP_ERROR_DCM_OPEN_DB       14
+
+#endif /* __ERROR_CODES_H__ */
+

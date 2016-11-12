@@ -1,0 +1,18 @@
+[Settings]
+ServiceName=CADLUNG
+CheckProcessSeconds = 30
+[Process0]
+CommandLine = lungscp.exe storescp.ini storescplog.ini
+WorkingDir= " "
+PauseStart= 1000
+PauseEnd= 1000
+UserInterface = No
+Restart = Yes
+[Process1]
+CommandLine = lungcad.exe cad.ini cadlog.ini
+WorkingDir= " "
+PauseStart= 1000
+PauseEnd= 1000
+UserInterface = No
+Restart = Yes
+

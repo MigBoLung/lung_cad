@@ -1,0 +1,5 @@
+SVMSAVEMODEL DOCUMENTATION
+This MEX extension takes as argument a model in matlab struct form
+(as returned by svmtrain) and saves it in a svmlib model file,
+whose name is passed as second argument.
+The function returns 0 on success.

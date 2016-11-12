@@ -1,0 +1,17 @@
+[network]
+port = 4006
+max_pdu = 65536
+
+called_aetitle 	= "LUNGSTORESCP"
+calling_aetitle = "LUNGSTORESCU"
+dimse_timeout = 0
+acse_timeout = 30
+
+[association]
+config = "F:\svn\etc\storescpasc.ini"
+
+[storage]
+destination = 1
+dir_base = "D:\trabajo\data\incoming\"
+dir_list = " "
+db_file = "D:\trabajo\data\store.db"

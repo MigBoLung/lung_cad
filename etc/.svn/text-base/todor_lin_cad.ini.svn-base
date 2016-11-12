@@ -1,0 +1,44 @@
+[io]
+[io/input]
+dir_base = "/scratch/todor/"
+dir_out	= "/scratch/todor/results/"
+db_file = "/scratch/todor/src/build/store.db"
+queue_len = 5
+retry_read = 10
+retry_write = 10
+[io/dicom]
+wc = -600
+ww = 1500
+dump = 1
+[segmentation]
+perform_segmentation = 1
+[segmentation/process]
+timing = 1
+[segmentation/threshold]
+g0 = -600
+g1 = 1000
+g2 = -400
+r = 3
+[segmentation/lung_separate]
+sep_min_area = 0
+sep_accum_thr_ini = 3
+sep_accum_thr_size_max = 0.60
+[segmentation/smooth]
+nod_diam_mm	= 30.0
+[segmentation/debug]
+dump = 1
+dir_dump = "/scratch/todor/segmentation/"
+[detection]
+perform_detection = 0
+[detection/Fradial]
+NUM_RADII = 5
+ALPHA = 1.0
+radial_threshold = 40.0
+[detection/Bloob]
+fast_scan = 0
+[detection/ScSpace]
+pix = 0.7
+min_nod_diam = 2.4
+max_nod_diam = 24.6
+[detection/LocalSS]
+radius=2

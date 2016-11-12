@@ -1,0 +1,317 @@
+10
+
+dir
+1109
+svn+ssh://ferri@mig154.df.unibo.it/svn/lung/trunk
+svn+ssh://ferri@mig154.df.unibo.it/svn/lung
+
+
+
+2010-10-29T10:16:16.464815Z
+1105
+ferri
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+fa9821e3-821e-0410-925d-c9990b472217
+
+mig_data_types.h
+file
+
+
+
+
+2008-01-23T11:01:36.000000Z
+440e0505acd0305be630fbc57419d1e4
+2007-11-30T15:23:54.961120Z
+368
+todorp
+has-props
+
+lung_tools
+dir
+
+libmigdet_2d
+dir
+
+mig_error_codes.h
+file
+
+
+
+
+2008-01-23T11:01:36.000000Z
+bcc07371ed93fb5a9ede0b6f182e7cf1
+2007-11-30T15:24:08.405131Z
+370
+todorp
+has-props
+
+libmigim
+dir
+
+libmigio
+dir
+
+libmigfpr_1
+dir
+
+libmigfpr_2
+dir
+
+mig_data_image.h
+file
+
+
+
+
+2010-10-15T12:47:58.141800Z
+8d6ec71bf6469e6cb8ad2f656480d718
+2010-10-15T12:31:33.608930Z
+1089
+ferri
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+620
+
+libmigfpr_2_polar_mip
+dir
+
+mig_data_cad.h
+file
+
+
+
+
+2008-01-23T11:01:36.000000Z
+9a574556c0147170624dc0ebc8a084f4
+2008-01-23T11:32:43.199878Z
+423
+ferri
+
+mig_defs.h
+file
+
+
+
+
+2009-06-25T13:53:48.624894Z
+410c56a3d188cf913f8633966104173c
+2008-11-06T16:09:54.594907Z
+1003
+todorp
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2805
+
+libmigfeat
+dir
+
+doc
+dir
+
+mig_data_dicom.h
+file
+
+
+
+
+2010-10-22T12:24:21.589684Z
+98c99b7710c4a5cd8f434eaf80ff8913
+2010-10-22T14:55:36.437945Z
+1098
+ferri
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2312
+
+bin
+dir
+
+libmigdb
+dir
+
+libmigst
+dir
+
+lung_scp
+dir
+
+libmigut
+dir
+
+mig_params_cad.h
+file
+
+
+
+
+2010-07-12T12:57:15.856481Z
+8eb5995d5e97c51724e9d60f55c088da
+2010-07-12T12:51:43.367767Z
+1052
+ferri
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+11679
+
+libmigmath
+dir
+
+libmigdicom
+dir
+
+libmigwhitening
+dir
+
+libmigdet_3d
+dir
+
+mig_config.h
+file
+
+
+
+
+2010-08-23T14:48:08.561482Z
+ad90dd1948bda54a804bdb516b65e575
+2010-08-23T16:35:12.476525Z
+1066
+ferri
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+3876
+
+libmigfpr_2_zernike_mip
+dir
+
+libmigsvm
+dir
+
+libmigtag
+dir
+
+build
+dir
+
+libmigseg
+dir
+
+extern
+dir
+
+install
+dir
+
+etc
+dir
+
+lung_cad
+dir
+

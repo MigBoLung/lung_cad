@@ -1,0 +1,44 @@
+1. Salvare e cariccare i risultati della fase di detection da disco.
+        quali risultati - fast radial? , scale space ?.
+        in quale formato - matlab ? raw ?
+
+2. Salvare e cariccare i risultati della fase di fpr1 da disco.
+        in quale formato - matlab, raw ?
+
+3. Testare per bene frp1.
+        come codificare la logica dei tagli in maniera efficiente ?
+
+4. Fpr2 parametri
+        vedi qui sopra
+
+5. Fpr2 model file in matlab
+        scrivere il codice per convertire da matlab a raw.
+
+6. Fpr2 whitening parameters in matlab
+        scrivere il codice perconvertire da matlab a raw.
+
+7. Testare bene Fpr2.
+
+8. Salvare e cariccare i crops prima della detection.
+        verificare in che modo Riccardi normalizza i crops prima di fare la detection.
+
+9. Come salvare i risultati finali
+    mettersi d'accordo finalmente sui files tag finali.
+
+10. Documentazione generale sul funzionamento.
+        schema generale + documentazione delle funzioni C ( doxygen )
+
+11. Testare il sistema sotto Linux.
+
+12. Testare come daemon ( servizio windows e daemon linux ).
+
+13. Scrivere / Riscrivere il demone di ricezione dei dati DICOM via rete.
+
+14. Definizione dei parametri (per esempio cut in fpr-1) su file separati.
+
+
+
+
+
+
+
