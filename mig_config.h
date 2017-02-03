@@ -46,7 +46,11 @@
 #include <dirent.h>
 #include <signal.h>
 #include <sys/time.h>
-#include <sys/io.h>
+#ifdef __APPLE__
+        #include <sys/uio.h>
+#else
+        #include <sys/io.h>
+#endif
 
 #endif /* LINUX */
 
