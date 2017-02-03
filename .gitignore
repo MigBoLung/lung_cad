@@ -1,6 +1,8 @@
 *.exe
 *.lib
 *.pdb
+*.exp
+*.dll
 build/mex/**
 **/Debug
 **/Release
