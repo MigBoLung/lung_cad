@@ -1,3 +1,0 @@
-#!/bin/csh -f
-unsetenv DISPLAY
-nohup lungcad $1 $2 &

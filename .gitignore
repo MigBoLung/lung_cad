@@ -1,3 +1,10 @@
-build/**
-DS_Store
+*.exe
+*.lib
+*.pdb
+build/mex/**
+**/Debug
+**/Release
+**/VTune
+*.user
+.DS_Store
 

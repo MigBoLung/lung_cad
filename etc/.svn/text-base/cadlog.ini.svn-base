@@ -1,7 +1,0 @@
-log4cplus.logger.CadLogger=DEBUG , CadAppender
-log4cplus.appender.CadAppender=log4cplus::RollingFileAppender
-log4cplus.appender.CadAppender.File=D:\trabajo\data\cad.log
-log4cplus.appender.CadAppender.MaxFileSize=1MB
-log4cplus.appender.CadAppender.MaxBackupIndex=5
-log4cplus.appender.CadAppender.layout=log4cplus::PatternLayout
-log4cplus.appender.CadAppender.layout.ConversionPattern=%n%d{%y/%m/%d %H:%M} %p %m

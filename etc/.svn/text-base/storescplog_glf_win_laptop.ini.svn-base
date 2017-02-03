@@ -1,9 +1,0 @@
-log4cplus.logger.scp_logger=INFO , R
-log4cplus.appender.R=log4cplus::RollingFileAppender
-log4cplus.appender.R.File=D:\MIG\trabajo\data\storescp\storescp.log
-log4cplus.appender.R.MaxFileSize=5MB
-log4cplus.appender.R.MaxBackupIndex=5
-log4cplus.appender.R.layout=log4cplus::PatternLayout
-log4cplus.appender.R.layout.ConversionPattern=%n%d{%y/%m/%d %H:%M:%S} %-5p %n%m%n
-
-

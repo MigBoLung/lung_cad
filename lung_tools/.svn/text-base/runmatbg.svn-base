@@ -1,4 +1,0 @@
-#!/bin/csh -f
-unsetenv DISPLAY
-#nohup matlab7v2 < $1 > $2 &
-nohup matlab < $1 > $2 &
