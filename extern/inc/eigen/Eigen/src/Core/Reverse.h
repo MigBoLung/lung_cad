@@ -5,33 +5,54 @@
 // Copyright (C) 2009 Ricard Marxer <email@ricardmarxer.com>
 // Copyright (C) 2009-2010 Gael Guennebaud <gael.guennebaud@inria.fr>
 //
-// Eigen is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public
-// License as published by the Free Software Foundation; either
-// version 3 of the License, or (at your option) any later version.
-//
-// Alternatively, you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of
-// the License, or (at your option) any later version.
-//
-// Eigen is distributed in the hope that it will be useful, but WITHOUT ANY
-// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License or the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public
-// License and a copy of the GNU General Public License along with
-// Eigen. If not, see <http://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of the Mozilla
+// Public License v. 2.0. If a copy of the MPL was not distributed
+// with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #ifndef EIGEN_REVERSE_H
 #define EIGEN_REVERSE_H
 
+namespace Eigen { 
+
+namespace internal {
+
+template<typename MatrixType, int Direction>
+struct traits<Reverse<MatrixType, Direction> >
+ : traits<MatrixType>
+{
+  typedef typename MatrixType::Scalar Scalar;
+  typedef typename traits<MatrixType>::StorageKind StorageKind;
+  typedef typename traits<MatrixType>::XprKind XprKind;
+  typedef typename ref_selector<MatrixType>::type MatrixTypeNested;
+  typedef typename remove_reference<MatrixTypeNested>::type _MatrixTypeNested;
+  enum {
+    RowsAtCompileTime = MatrixType::RowsAtCompileTime,
+    ColsAtCompileTime = MatrixType::ColsAtCompileTime,
+    MaxRowsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
+    MaxColsAtCompileTime = MatrixType::MaxColsAtCompileTime,
+    Flags = _MatrixTypeNested::Flags & (RowMajorBit | LvalueBit)
+  };
+};
+
+template<typename PacketType, bool ReversePacket> struct reverse_packet_cond
+{
+  static inline PacketType run(const PacketType& x) { return preverse(x); }
+};
+
+template<typename PacketType> struct reverse_packet_cond<PacketType,false>
+{
+  static inline PacketType run(const PacketType& x) { return x; }
+};
+
+} // end namespace internal 
+
 /** \class Reverse
+  * \ingroup Core_Module
   *
   * \brief Expression of the reverse of a vector or matrix
   *
-  * \param MatrixType the type of the object of which we are taking the reverse
+  * \tparam MatrixType the type of the object of which we are taking the reverse
+  * \tparam Direction defines the direction of the reverse operation, can be Vertical, Horizontal, or BothDirections
   *
   * This class represents an expression of the reverse of a vector.
   * It is the return type of MatrixBase::reverse() and VectorwiseOp::reverse()
@@ -39,56 +60,19 @@
   *
   * \sa MatrixBase::reverse(), VectorwiseOp::reverse()
   */
-template<typename MatrixType, int Direction>
-struct ei_traits<Reverse<MatrixType, Direction> >
- : ei_traits<MatrixType>
-{
-  typedef typename MatrixType::Scalar Scalar;
-  typedef typename ei_traits<MatrixType>::StorageKind StorageKind;
-  typedef typename ei_traits<MatrixType>::XprKind XprKind;
-  typedef typename ei_nested<MatrixType>::type MatrixTypeNested;
-  typedef typename ei_unref<MatrixTypeNested>::type _MatrixTypeNested;
-  enum {
-    RowsAtCompileTime = MatrixType::RowsAtCompileTime,
-    ColsAtCompileTime = MatrixType::ColsAtCompileTime,
-    MaxRowsAtCompileTime = MatrixType::MaxRowsAtCompileTime,
-    MaxColsAtCompileTime = MatrixType::MaxColsAtCompileTime,
-
-    // let's enable LinearAccess only with vectorization because of the product overhead
-    LinearAccess = ( (Direction==BothDirections) && (int(_MatrixTypeNested::Flags)&PacketAccessBit) )
-                 ? LinearAccessBit : 0,
-
-    Flags = int(_MatrixTypeNested::Flags) & (HereditaryBits | PacketAccessBit | LinearAccess),
-
-    CoeffReadCost = _MatrixTypeNested::CoeffReadCost
-  };
-};
-
-template<typename PacketScalar, bool ReversePacket> struct ei_reverse_packet_cond
-{
-  static inline PacketScalar run(const PacketScalar& x) { return ei_preverse(x); }
-};
-template<typename PacketScalar> struct ei_reverse_packet_cond<PacketScalar,false>
-{
-  static inline PacketScalar run(const PacketScalar& x) { return x; }
-};
-
 template<typename MatrixType, int Direction> class Reverse
-  : public ei_dense_xpr_base< Reverse<MatrixType, Direction> >::type
+  : public internal::dense_xpr_base< Reverse<MatrixType, Direction> >::type
 {
   public:
 
-    typedef typename ei_dense_xpr_base<Reverse>::type Base;
+    typedef typename internal::dense_xpr_base<Reverse>::type Base;
     EIGEN_DENSE_PUBLIC_INTERFACE(Reverse)
+    typedef typename internal::remove_all<MatrixType>::type NestedExpression;
     using Base::IsRowMajor;
-
-    // next line is necessary because otherwise const version of operator()
-    // is hidden by non-const version defined in this file
-    using Base::operator(); 
 
   protected:
     enum {
-      PacketSize = ei_packet_traits<Scalar>::size,
+      PacketSize = internal::packet_traits<Scalar>::size,
       IsColMajor = !IsRowMajor,
       ReverseRow = (Direction == Vertical)   || (Direction == BothDirections),
       ReverseCol = (Direction == Horizontal) || (Direction == BothDirections),
@@ -98,81 +82,29 @@ template<typename MatrixType, int Direction> class Reverse
                     || ((Direction == Vertical)   && IsColMajor)
                     || ((Direction == Horizontal) && IsRowMajor)
     };
-    typedef ei_reverse_packet_cond<PacketScalar,ReversePacket> reverse_packet;
+    typedef internal::reverse_packet_cond<PacketScalar,ReversePacket> reverse_packet;
   public:
 
-    inline Reverse(const MatrixType& matrix) : m_matrix(matrix) { }
+    EIGEN_DEVICE_FUNC explicit inline Reverse(const MatrixType& matrix) : m_matrix(matrix) { }
 
     EIGEN_INHERIT_ASSIGNMENT_OPERATORS(Reverse)
 
-    inline Index rows() const { return m_matrix.rows(); }
-    inline Index cols() const { return m_matrix.cols(); }
+    EIGEN_DEVICE_FUNC inline Index rows() const { return m_matrix.rows(); }
+    EIGEN_DEVICE_FUNC inline Index cols() const { return m_matrix.cols(); }
 
-    inline Scalar& operator()(Index row, Index col)
+    EIGEN_DEVICE_FUNC inline Index innerStride() const
     {
-      ei_assert(row >= 0 && row < rows() && col >= 0 && col < cols());
-      return coeffRef(row, col);
+      return -m_matrix.innerStride();
     }
 
-    inline Scalar& coeffRef(Index row, Index col)
+    EIGEN_DEVICE_FUNC const typename internal::remove_all<typename MatrixType::Nested>::type&
+    nestedExpression() const 
     {
-      return m_matrix.const_cast_derived().coeffRef(ReverseRow ? m_matrix.rows() - row - 1 : row,
-                                                    ReverseCol ? m_matrix.cols() - col - 1 : col);
-    }
-
-    inline const Scalar coeff(Index row, Index col) const
-    {
-      return m_matrix.coeff(ReverseRow ? m_matrix.rows() - row - 1 : row,
-                            ReverseCol ? m_matrix.cols() - col - 1 : col);
-    }
-
-    inline const Scalar coeff(Index index) const
-    {
-      return m_matrix.coeff(m_matrix.size() - index - 1);
-    }
-
-    inline Scalar& coeffRef(Index index)
-    {
-      return m_matrix.const_cast_derived().coeffRef(m_matrix.size() - index - 1);
-    }
-
-    inline Scalar& operator()(Index index)
-    {
-      ei_assert(index >= 0 && index < m_matrix.size());
-      return coeffRef(index);
-    }
-
-    template<int LoadMode>
-    inline const PacketScalar packet(Index row, Index col) const
-    {
-      return reverse_packet::run(m_matrix.template packet<LoadMode>(
-                                    ReverseRow ? m_matrix.rows() - row - OffsetRow : row,
-                                    ReverseCol ? m_matrix.cols() - col - OffsetCol : col));
-    }
-
-    template<int LoadMode>
-    inline void writePacket(Index row, Index col, const PacketScalar& x)
-    {
-      m_matrix.const_cast_derived().template writePacket<LoadMode>(
-                                      ReverseRow ? m_matrix.rows() - row - OffsetRow : row,
-                                      ReverseCol ? m_matrix.cols() - col - OffsetCol : col,
-                                      reverse_packet::run(x));
-    }
-
-    template<int LoadMode>
-    inline const PacketScalar packet(Index index) const
-    {
-      return ei_preverse(m_matrix.template packet<LoadMode>( m_matrix.size() - index - PacketSize ));
-    }
-
-    template<int LoadMode>
-    inline void writePacket(Index index, const PacketScalar& x)
-    {
-      m_matrix.const_cast_derived().template writePacket<LoadMode>(m_matrix.size() - index - PacketSize, ei_preverse(x));
+      return m_matrix;
     }
 
   protected:
-    const typename MatrixType::Nested m_matrix;
+    typename MatrixType::Nested m_matrix;
 };
 
 /** \returns an expression of the reverse of *this.
@@ -182,37 +114,98 @@ template<typename MatrixType, int Direction> class Reverse
   *
   */
 template<typename Derived>
-inline Reverse<Derived, BothDirections>
+inline typename DenseBase<Derived>::ReverseReturnType
 DenseBase<Derived>::reverse()
 {
-  return derived();
+  return ReverseReturnType(derived());
 }
 
-/** This is the const version of reverse(). */
-template<typename Derived>
-inline const Reverse<Derived, BothDirections>
-DenseBase<Derived>::reverse() const
-{
-  return derived();
-}
+
+//reverse const overload moved DenseBase.h due to a CUDA compiler bug
 
 /** This is the "in place" version of reverse: it reverses \c *this.
   *
   * In most cases it is probably better to simply use the reversed expression
   * of a matrix. However, when reversing the matrix data itself is really needed,
   * then this "in-place" version is probably the right choice because it provides
-  * the following additional features:
+  * the following additional benefits:
   *  - less error prone: doing the same operation with .reverse() requires special care:
   *    \code m = m.reverse().eval(); \endcode
-  *  - no temporary object is created (currently there is one created but could be avoided using swap)
+  *  - this API enables reverse operations without the need for a temporary
   *  - it allows future optimizations (cache friendliness, etc.)
   *
-  * \sa reverse() */
+  * \sa VectorwiseOp::reverseInPlace(), reverse() */
 template<typename Derived>
 inline void DenseBase<Derived>::reverseInPlace()
 {
-  derived() = derived().reverse().eval();
+  if(cols()>rows())
+  {
+    Index half = cols()/2;
+    leftCols(half).swap(rightCols(half).reverse());
+    if((cols()%2)==1)
+    {
+      Index half2 = rows()/2;
+      col(half).head(half2).swap(col(half).tail(half2).reverse());
+    }
+  }
+  else
+  {
+    Index half = rows()/2;
+    topRows(half).swap(bottomRows(half).reverse());
+    if((rows()%2)==1)
+    {
+      Index half2 = cols()/2;
+      row(half).head(half2).swap(row(half).tail(half2).reverse());
+    }
+  }
 }
 
+namespace internal {
+  
+template<int Direction>
+struct vectorwise_reverse_inplace_impl;
+
+template<>
+struct vectorwise_reverse_inplace_impl<Vertical>
+{
+  template<typename ExpressionType>
+  static void run(ExpressionType &xpr)
+  {
+    Index half = xpr.rows()/2;
+    xpr.topRows(half).swap(xpr.bottomRows(half).colwise().reverse());
+  }
+};
+
+template<>
+struct vectorwise_reverse_inplace_impl<Horizontal>
+{
+  template<typename ExpressionType>
+  static void run(ExpressionType &xpr)
+  {
+    Index half = xpr.cols()/2;
+    xpr.leftCols(half).swap(xpr.rightCols(half).rowwise().reverse());
+  }
+};
+
+} // end namespace internal
+
+/** This is the "in place" version of VectorwiseOp::reverse: it reverses each column or row of \c *this.
+  *
+  * In most cases it is probably better to simply use the reversed expression
+  * of a matrix. However, when reversing the matrix data itself is really needed,
+  * then this "in-place" version is probably the right choice because it provides
+  * the following additional benefits:
+  *  - less error prone: doing the same operation with .reverse() requires special care:
+  *    \code m = m.reverse().eval(); \endcode
+  *  - this API enables reverse operations without the need for a temporary
+  *
+  * \sa DenseBase::reverseInPlace(), reverse() */
+template<typename ExpressionType, int Direction>
+void VectorwiseOp<ExpressionType,Direction>::reverseInPlace()
+{
+  internal::vectorwise_reverse_inplace_impl<Direction>::run(_expression().const_cast_derived());
+}
+
+} // end namespace Eigen
 
 #endif // EIGEN_REVERSE_H

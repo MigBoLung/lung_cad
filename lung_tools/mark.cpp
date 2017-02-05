@@ -88,9 +88,10 @@ main ( int argc , char **argv )
       fprintf ( stderr , "\nERROR. Loading dicom info from : %s..." , argv[1] );
       exit( EXIT_FAILURE );
    }
-        
+  
+   /* TODO: remove magic numbers */ 
    /* read dicom data */        
-   rc = mig_dcm_rdir_16u ( &DicomData , &DicomInfo , &DicomDataSize , -600 , 1600 );
+   rc = mig_dcm_rdir_16u ( &DicomData , &DicomInfo , &DicomDataSize , -600 , 1600, 1000, 1 );
    if ( rc != MIG_OK )
    {
       fprintf ( stderr , "\nERROR. Loading dicom data from : %s..." , argv[1] );

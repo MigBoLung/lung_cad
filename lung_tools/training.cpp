@@ -994,7 +994,7 @@ _train_scaling_whitening ( mig_lst_t *feat_lst)
 		for (int idir = 0; idir != feat->ndir; ++idir)
 		{
 			//copy to temp
-			vector<float> tempfeat(feat->feats[idir], feat->feats[idir]+feat->feat_len);
+            std::vector<float> tempfeat(feat->feats[idir], feat->feats[idir]+feat->feat_len);
 			//replace with witened
 			rc = mig_whitening_apply(&_whitener, &tempfeat[0], feat->feats[idir]);
 		}

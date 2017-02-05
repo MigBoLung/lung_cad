@@ -1,0 +1,53 @@
+Building libmigdicom.so
+sources libmigdicom.cpp
+objects libmigdicom.o
+g++ -shared -o libmigdicom.so libmigdicom.o -L../extern/lib/gcc/64 -L../build -L/usr/local/lib -L/Applications/MATLAB_R2016b.app/bin/maci64 -lmigfeat -lmigtag -lmigdb -lmigim -lmigio -lmigmath -lmigst -lmigut -lmigsvm  -ldcmimgle -ldcmdata -lofstd -llog4cplus -lsqlite3 -ltiff -lz -ldl -lmat -lmex -lmx 
+Undefined symbols for architecture x86_64:
+  "OFLog::getLogger(char const*)", referenced from:
+      __GLOBAL__sub_I_dctypes.cc in libdcmdata.a(dctypes.cc.o)
+      __GLOBAL__sub_I_diutils.cc in libdcmimgle.a(diutils.cc.o)
+  "dcmtk::log4cplus::Logger::~Logger()", referenced from:
+      OFLogger::~OFLogger() in libdcmdata.a(dctypes.cc.o)
+      OFLogger::~OFLogger() in libdcmimgle.a(diutils.cc.o)
+  "dcmtk::log4cplus::detail::macro_forced_log(dcmtk::log4cplus::Logger const&, int, OFString const&, char const*, int, char const*)", referenced from:
+      DicomImage::checkDataDictionary() in libdcmimgle.a(dcmimage.cc.o)
+      DicomImage::Init() in libdcmimgle.a(dcmimage.cc.o)
+      DicomImage::createScaledImage(long, long, unsigned long, unsigned long, unsigned long, unsigned long, int, int, unsigned short) const in libdcmimgle.a(dcmimage.cc.o)
+      DiMonoImage::Init(DiMonoModality*, bool) in libdcmimgle.a(dimoimg.cc.o)
+      DiMonoImage::checkInterData(int) in libdcmimgle.a(dimoimg.cc.o)
+      DiMonoImage::DiMonoImage(DiMonoImage const&) in libdcmimgle.a(dimoimg.cc.o)
+      DiMonoImage::getData(void*, unsigned long, unsigned long, int, int, int) in libdcmimgle.a(dimoimg.cc.o)
+      ...
+  "dcmtk::log4cplus::detail::get_macro_body_oss()", referenced from:
+      DicomImage::checkDataDictionary() in libdcmimgle.a(dcmimage.cc.o)
+      DicomImage::Init() in libdcmimgle.a(dcmimage.cc.o)
+      DicomImage::createScaledImage(long, long, unsigned long, unsigned long, unsigned long, unsigned long, int, int, unsigned short) const in libdcmimgle.a(dcmimage.cc.o)
+      DiMonoImage::Init(DiMonoModality*, bool) in libdcmimgle.a(dimoimg.cc.o)
+      DiMonoImage::checkInterData(int) in libdcmimgle.a(dimoimg.cc.o)
+      DiMonoImage::DiMonoImage(DiMonoImage const&) in libdcmimgle.a(dimoimg.cc.o)
+      DiMonoImage::getData(void*, unsigned long, unsigned long, int, int, int) in libdcmimgle.a(dimoimg.cc.o)
+      ...
+  "dcmtk::log4cplus::Logger::isEnabledFor(int) const", referenced from:
+      DicomImage::checkDataDictionary() in libdcmimgle.a(dcmimage.cc.o)
+      DicomImage::Init() in libdcmimgle.a(dcmimage.cc.o)
+      DicomImage::createScaledImage(long, long, unsigned long, unsigned long, unsigned long, unsigned long, int, int, unsigned short) const in libdcmimgle.a(dcmimage.cc.o)
+      DiMonoImage::Init(DiMonoModality*, bool) in libdcmimgle.a(dimoimg.cc.o)
+      DiMonoImage::checkInterData(int) in libdcmimgle.a(dimoimg.cc.o)
+      DiMonoImage::DiMonoImage(DiMonoImage const&) in libdcmimgle.a(dimoimg.cc.o)
+      DiMonoImage::getData(void*, unsigned long, unsigned long, int, int, int) in libdcmimgle.a(dimoimg.cc.o)
+      ...
+  "__libiconv_version", referenced from:
+      OFCharacterEncoding::getLibraryVersionString() in libofstd.a(ofchrenc.cc.o)
+  "_iconv", referenced from:
+      OFCharacterEncoding::convertString(void*, char const*, unsigned long, OFString&, bool) in libofstd.a(ofchrenc.cc.o)
+  "_iconv_close", referenced from:
+      OFCharacterEncoding::closeDescriptor(void*&) in libofstd.a(ofchrenc.cc.o)
+  "_iconv_open", referenced from:
+      OFCharacterEncoding::openDescriptor(void*&, OFString const&, OFString const&) in libofstd.a(ofchrenc.cc.o)
+  "_iconvctl", referenced from:
+      OFCharacterEncoding::convertString(void*, char const*, unsigned long, OFString&, bool) in libofstd.a(ofchrenc.cc.o)
+  "_locale_charset", referenced from:
+      OFCharacterEncoding::updateLocaleEncoding() in libofstd.a(ofchrenc.cc.o)
+ld: symbol(s) not found for architecture x86_64
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+make: *** [libmigdicom.so] Error 1

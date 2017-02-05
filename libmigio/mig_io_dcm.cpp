@@ -796,7 +796,7 @@ _data_info_get ( DcmDataset *dataset ,
 		   MIG_DCM_FIELD_LEN , "%s" , str );
 
         /* patients name */
-        cond = dataset->findAndGetString( DCM_PatientsName , str );
+        cond = dataset->findAndGetString( DCM_PatientName , str );
         if ( cond != EC_Normal )
                 return MIG_ERROR_UNSUPPORTED;
 	      snprintf ( info->out->patient_name , 

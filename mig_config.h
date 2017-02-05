@@ -97,7 +97,7 @@
    variable LIB
 */
 
-/*#define MATLAB*/
+#define MATLAB
 
 /* MMX SSE SSE2 SSE3 */
 /* To use vector instructions code

@@ -1,0 +1,656 @@
+#!/usr/make
+
+##############################################
+# Makefile for LUNG CAD and SCP
+##############################################
+# Flags that must be setup at the command line :
+# flag 		values		default value   explanation
+# BUILD     DEBUG       DEBUG
+#           RELEASE
+#           OPTIMIZE
+#
+#
+# ARCH     INTEL_M      AMD_OPTERON
+#          INTEL_XEON
+#          AMD_ATHLON
+#          AMD_OPTERON
+#
+#
+
+##############################################
+# TOOLS
+##############################################
+CC = gcc
+CPP = g++
+DOX = doxygen
+AR = ar
+ARFLAGS = rcsu
+ASM = yasm
+ASMFLAGS = -a x86 -f elf -m x86 
+CFLAGS =
+CPPFLAGS =
+DLL = g++ -shared
+
+##############################################
+# DEFS
+##############################################
+DEFS_SYS = -DLINUX -D_THREAD_SAFE 
+DEFS = $(DEFS_SYS) $(DEFS_MIG)
+
+##############################################
+# FLAGS
+##############################################
+CFLAGS_DEBUG = -Wall -g -O0 -DDEBUG -fPIC
+CFLAGS_PROFILE = -g -O0 -DNDEBUG -fPIC
+CFLAGS_RELEASE = -O2 -pipe -fomit-frame-pointer -DNDEBUG -fPIC
+CFLAGS_OPTIMIZE = -O3 -pipe -fomit-frame-pointer -ffast-math -DNDEBUG -fPIC
+
+##############################################
+# INCLUDE OUR FUNCTIONS
+##############################################
+include functions.make
+
+##############################################
+# FILES
+##############################################
+include files.make
+
+##############################################
+# DECIDE BUILD TYPE
+##############################################
+ifndef BUILD
+  CFLAGS = $(CFLAGS_DEBUG)
+else
+
+ifeq ($(BUILD),PROFILE)
+  CFLAGS = $(CFLAGS_PROFILE)
+endif
+
+ifeq ($(BUILD),RELEASE)
+  CFLAGS = $(CFLAGS_RELEASE)
+endif
+
+ifeq ($(BUILD),OPTIMIZE)
+  CFLAGS = $(CFLAGS_OPTIMIZE)
+endif
+
+ifeq ($(BUILD),DEBUG)
+  CFLAGS = $(CFLAGS_DEBUG)
+endif
+
+endif
+
+##############################################
+# ADD FLAGS BASED ON ARCHITECTURE TYPE
+##############################################
+ifndef ARCH
+  CFLAGS += -march=opteron -DMIG_LITTLE_ENDIAN -DMIG_ARCH_IS_64BIT
+  CHOST = X86_64
+else
+
+ifeq ($(ARCH),INTEL_M)
+  CFLAGS += -march=pentium-m
+  CFLAGS += -DMIG_LITTLE_ENDIAN -DMIG_ARCH_IS_32BIT
+  CHOST = X86_32
+endif
+
+ifeq ($(ARCH),INTEL_XEON)
+  CFLAGS += -march=pentium4
+  CFLAGS += -DMIG_LITTLE_ENDIAN -DMIG_ARCH_IS_32BIT
+  CHOST = X86_32
+endif
+
+ifeq ($(ARCH),AMD_ATHLON)
+  CFLAGS += -march=athlon64
+  CFLAGS += -DMIG_LITTLE_ENDIAN -DMIG_ARCH_IS_64BIT
+  CHOST = X86_64
+endif
+
+ifeq ($(ARCH),AMD_OPTERON)
+  CFLAGS += -march=opteron
+  CFLAGS += -DMIG_LITTLE_ENDIAN -DMIG_ARCH_IS_64BIT
+  CHOST = X86_64
+endif
+
+endif
+
+# add architecture type to compile command
+CFLAGS += -D$(CHOST)
+
+# add definitions to compile command
+CFLAGS += $(DEFS)
+
+##############################################
+# Version numbers and release number
+##############################################
+VERSION = 0.0
+VERSION_NUMBER = 0000000
+RELEASE = 0.0.0
+
+##############################################
+# DIRECTORIES
+##############################################
+
+# The toplevel directory of the source tree.
+TOP = ..
+
+DIR_BIN = $(TOP)/bin
+DIR_BUILD = $(TOP)/build
+DIR_DOC = $(TOP)/doc
+DIR_ETC = $(TOP)/etc
+
+DIR_OS_INC = /usr/local/include
+DIR_EXTERN_INC = $(TOP)/extern/inc
+
+DIR_MATLAB = /Applications/MATLAB_R2016b.app
+
+ifeq ($(CHOST),X86_32)
+  DIR_EXTERN_LIB = $(TOP)/extern/lib/gcc
+else
+  DIR_EXTERN_LIB = $(TOP)/extern/lib/gcc/64
+endif
+
+DIR_LIBMIGIM = $(TOP)/libmigim
+DIR_LIBMIGIO = $(TOP)/libmigio
+DIR_LIBMIGMATH = $(TOP)/libmigmath
+DIR_LIBMIGST = $(TOP)/libmigst
+DIR_LIBMIGUT = $(TOP)/libmigut
+DIR_LIBMIGDICOM = $(TOP)/libmigdicom
+DIR_LIBMIGSEG = $(TOP)/libmigseg
+DIR_LIBMIGDET_2D = $(TOP)/libmigdet_2d
+DIR_LIBMIGDET_3D = $(TOP)/libmigdet_3d
+DIR_LIBMIGFPR_1 = $(TOP)/libmigfpr_1
+DIR_LIBMIGFPR_2 = $(TOP)/libmigfpr_2_zernike_mip
+DIR_LIBMIGDB = $(TOP)/libmigdb
+DIR_LIBMIGTAG = $(TOP)/libmigtag
+DIR_LIBMIGWHITENING = $(TOP)/libmigwhitening
+DIR_LIBMIGFEAT = $(TOP)/libmigfeat
+DIR_LIBMIGSVM = $(TOP)/libmigsvm
+
+DIR_SCP = $(TOP)/lung_scp
+DIR_CAD = $(TOP)/lung_cad
+DIR_TOOLS = $(TOP)/lung_tools
+
+vpath %.c $(DIR_LIBMIGUT)
+vpath %.c $(DIR_LIBMIGST)
+vpath %.c $(DIR_LIBMIGIO)
+vpath %.c $(DIR_LIBMIGMATH)
+vpath %.c $(DIR_LIBMIGIM)
+vpath %.c $(DIR_LIBMIGDICOM)
+vpath %.c $(DIR_LIBMIGSEG)
+vpath %.c $(DIR_LIBMIGDET_2D)
+vpath %.c $(DIR_LIBMIGDET_3D)
+vpath %.c $(DIR_LIBMIGTAG)
+vpath %.c $(DIR_LIBMIGWHITENING)
+vpath %.c $(DIR_LIBMIGFEAT)
+vpath %.c $(DIR_LIBMIGSVM)
+vpath %.c $(DIR_SCP)
+vpath %.c $(DIR_CAD)
+
+vpath %.cpp $(DIR_LIBMIGIO)
+vpath %.cpp $(DIR_LIBMIGWHITENING)
+vpath %.cpp $(DIR_LIBMIGDICOM)
+vpath %.cpp $(DIR_LIBMIGSEG)
+vpath %.cpp $(DIR_LIBMIGDET_2D)
+vpath %.cpp $(DIR_LIBMIGDET_3D)
+vpath %.cpp $(DIR_LIBMIGFPR_1)
+vpath %.cpp $(DIR_LIBMIGFPR_2)
+vpath %.cpp $(DIR_LIBMIGDB)
+vpath %.cpp $(DIR_LIBMIGSVM)
+vpath %.cpp $(DIR_SCP)
+vpath %.cpp $(DIR_CAD)
+vpath %.cpp $(DIR_TOOLS)
+
+vpath %.asm $(DIR_LIBMIGUT)
+
+# set up INCLUDES
+INCLUDES = -I$(TOP) \
+      -I$(DIR_MATLAB)/extern/include \
+	-I$(DIR_OS_INC) \
+      -I$(DIR_OS_INC)/libtiff \
+      -I$(DIR_OS_INC)/sqlite \
+	-I$(DIR_EXTERN_INC) \
+      -I$(DIR_EXTERN_INC)/libtiff \
+      -I$(DIR_EXTERN_INC)/sqlite \
+      -I$(DIR_EXTERN_INC)/eigen \
+      -I$(DIR_LIBMIGIM) \
+      -I$(DIR_LIBMIGIO) \
+      -I$(DIR_LIBMIGMATH) \
+      -I$(DIR_LIBMIGST) \
+      -I$(DIR_LIBMIGUT) \
+      -I$(DIR_LIBMIGDB) \
+      -I$(DIR_LIBMIGTAG) \
+	  -I$(DIR_LIBMIGWHITENING) \
+	  -I$(DIR_LIBMIGFEAT) \
+	  -I$(DIR_LIBMIGSVM) \
+      -I$(DIR_LIBMIGDICOM) \
+      -I$(DIR_LIBMIGSEG) \
+      -I$(DIR_LIBMIGDET_2D) \
+      -I$(DIR_LIBMIGDET_3D) \
+      -I$(DIR_LIBMIGFPR_1) \
+      -I$(DIR_SCP) \
+      -I$(DIR_CAD) 
+# set up CPPFLAGS
+CPPFLAGS = $(DEFS)
+
+# set up library paths
+LIB_DIRS = \
+			-L/usr/local/lib \
+            -L$(DIR_BUILD) \
+			-L$(DIR_MATLAB)/bin/maci64
+
+#-L$(DIR_EXTERN_LIB) \
+
+# setup external libraries
+LDFLAGS_EXTERN = \
+        -ldcmimgle \
+        -ldcmdata \
+        -lofstd \
+		-llog4cplus \
+        -lsqlite3 \
+        -ltiff \
+        -lz \
+        -ldl \
+		-liconv \
+		-loflog #needed in new dcmtk version
+
+LDFLAGS_MATLAB = \
+        -lmat \
+        -lmex \
+        -lmx 
+
+# setup internal libraries
+LDFLAGS_INTERN = \
+		 -lmigfeat \
+                 -lmigtag \
+                 -lmigdb \
+                 -lmigim \
+                 -lmigio \
+                 -lmigmath \
+                 -lmigst \
+                 -lmigut \
+		 -lmigsvm \
+		 -lmigwhitening
+
+
+# set up LDFLAGS
+LDFLAGS = $(LIB_DIRS) \
+          $(LDFLAGS_INTERN) \
+          $(LDFLAGS_EXTERN) \
+          $(LDFLAGS_MATLAB)
+
+########################################################
+# BUILD RULES
+########################################################
+
+# building object files from c files
+%.o: %.c
+	@echo Compiling $@ from $<
+	$(call make-depend,$<,$@,$(subst .o,.d,$@))
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) -c $< -o $@
+
+# building object files from cpp files
+%.o: %.cpp
+	@echo Compiling $@ from $<
+	$(call make-depend,$<,$@,$(subst .o,.d,$@))
+	$(CPP) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) -c $< -o $@
+
+# building object files from asm (NASM) files
+%.o: %.asm
+	@echo Compiling $@ from $<
+	$(ASM) $(ASMFLAGS) -o $@ $<
+
+########################################################
+# BUILD TARGETS
+# BUILD TARGETS
+########################################################
+
+all: build_libs build_dlls $(EXE_CAD) build_apps
+
+# Build static libraries 
+build_libs : lib$(LIB_LIBMIGUT) \
+				 lib$(LIB_LIBMIGST) \
+				 lib$(LIB_LIBMIGIM) \
+             lib$(LIB_LIBMIGIO) \
+             lib$(LIB_LIBMIGDB) \
+             lib$(LIB_LIBMIGTAG) \
+		     lib$(LIB_LIBMIGWHITENING) \
+			 lib$(LIB_LIBMIGFEAT) \
+			 lib$(LIB_LIBMIGSVM) \
+		     lib$(LIB_LIBMIGMATH) 
+
+# Build DLLs
+build_dlls : lib$(LIB_LIBMIGDICOM) \
+             lib$(LIB_LIBMIGSEG) \
+             lib$(LIB_LIBMIGDET_2D) \
+				 lib$(LIB_LIBMIGDET_3D) \
+             lib$(LIB_LIBMIGFPR_1)\
+             lib$(LIB_LIBMIGFPR_2)\
+
+# Build applications
+build_apps : $(EXE_CAD) $(EXE_DB_INSERT) $(EXE_RESIZE) $(EXE_MARK)\
+				$(EXE_TRAINING)
+#$(EXE_SCP) 
+
+# Static libraries build rules
+
+# mig imaging library
+lib$(LIB_LIBMIGIM) : $(OBJ_LIBMIGIM)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGIM)
+	@echo objects $(OBJ_LIBMIGIM)
+	$(AR) $(ARFLAGS) $@ $(OBJ_LIBMIGIM)
+
+# mig io library
+lib$(LIB_LIBMIGIO) : $(OBJ_LIBMIGIO)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGIO)
+	@echo objects $(OBJ_LIBMIGIO)
+	$(AR) $(ARFLAGS) $@ $(OBJ_LIBMIGIO)
+
+# mig math library
+lib$(LIB_LIBMIGMATH) : $(OBJ_LIBMIGMATH)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGMATH)
+	@echo objects $(OBJ_LIBMIGMATH)
+	$(AR) $(ARFLAGS) $@ $(OBJ_LIBMIGMATH)
+
+# mig structures library
+lib$(LIB_LIBMIGST) : $(OBJ_LIBMIGST)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGST)
+	@echo objects $(OBJ_LIBMIGST)
+	$(AR) $(ARFLAGS) $@ $(OBJ_LIBMIGST)
+
+# mig utilities library
+lib$(LIB_LIBMIGUT) : $(OBJ_LIBMIGUT)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGUT)
+	@echo objects $(OBJ_LIBMIGUT)
+	$(AR) $(ARFLAGS) $@ $(OBJ_LIBMIGUT)
+
+# mig database library
+lib$(LIB_LIBMIGDB) : $(OBJ_LIBMIGDB)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGDB)
+	@echo objects $(OBJ_LIBMIGDB)
+	$(AR) $(ARFLAGS) $@ $(OBJ_LIBMIGDB)
+
+# mig tag writer library
+lib$(LIB_LIBMIGTAG) : $(OBJ_LIBMIGTAG)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGTAG)
+	@echo objects $(OBJ_LIBMIGTAG)
+	$(AR) $(ARFLAGS) $@ $(OBJ_LIBMIGTAG)
+
+#$(OBJ_LIBMIGWHITENING) : eigenwhitener.o
+
+# mig whitening library
+lib$(LIB_LIBMIGWHITENING) : $(OBJ_LIBMIGWHITENING)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGWHITENING)
+	@echo objects $(OBJ_LIBMIGWHITENING)
+	$(AR) $(ARFLAGS) $@ $(OBJ_LIBMIGWHITENING)
+
+
+# mig feature extraction library
+lib$(LIB_LIBMIGFEAT) : $(OBJ_LIBMIGFEAT)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGFEAT)
+	@echo objects $(OBJ_LIBMIGFEAT)
+	$(AR) $(ARFLAGS) $@ $(OBJ_LIBMIGFEAT)
+
+# mig svm library
+lib$(LIB_LIBMIGSVM) : $(OBJ_LIBMIGSVM)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGSVM)
+	@echo objects $(OBJ_LIBMIGSVM)
+	$(AR) $(ARFLAGS) $@ $(OBJ_LIBMIGSVM)
+
+
+# DLL libraries build rules
+
+# mig dicom library
+#TODO: this is a workaround, find why this doesnt work without next line
+libmigdicom.o: libmigdicom.cpp
+
+
+lib$(LIB_LIBMIGDICOM) : $(OBJ_LIBMIGDICOM)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGDICOM)
+	@echo objects $(OBJ_LIBMIGDICOM)
+	$(DLL) -o $@ $(OBJ_LIBMIGDICOM) $(LDFLAGS)
+
+# mig segmentation library
+lib$(LIB_LIBMIGSEG) : $(OBJ_LIBMIGSEG)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGSEG)
+	@echo objects $(OBJ_LIBMIGSEG)
+	$(DLL) -o $@ $(OBJ_LIBMIGSEG) $(LDFLAGS)
+
+# mig 2d detection library
+lib$(LIB_LIBMIGDET_2D) : $(OBJ_LIBMIGDET_2D)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGDET_2D)
+	@echo objects $(OBJ_LIBMIGDET_2D)
+	$(DLL) -o $@ $(OBJ_LIBMIGDET_2D) $(LDFLAGS)
+
+# mig 3d detection library
+lib$(LIB_LIBMIGDET_3D) : $(OBJ_LIBMIGDET_3D)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGDET_3D)
+	@echo objects $(OBJ_LIBMIGDET_3D)
+	$(DLL) -o $@ $(OBJ_LIBMIGDET_3D) $(LDFLAGS)
+
+# mig fpr1 library
+lib$(LIB_LIBMIGFPR_1) : $(OBJ_LIBMIGFPR_1)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGFPR_1)
+	@echo objects $(OBJ_LIBMIGFPR_1)
+	$(DLL) -o $@ $(OBJ_LIBMIGFPR_1) $(LDFLAGS)
+
+# mig fpr2 library
+lib$(LIB_LIBMIGFPR_2) : $(OBJ_LIBMIGFPR_2)
+	@echo Building $@
+	@echo sources $(SRC_LIBMIGFPR_2)
+	@echo objects $(OBJ_LIBMIGFPR_2)
+	$(DLL) -o $@ $(OBJ_LIBMIGFPR_2) $(LDFLAGS) 
+
+#-Wl,-Map=libmigfpr_2_zernike_mip.map
+
+
+# Applications build rules
+
+# lung CAD
+$(EXE_CAD) : \
+             lib$(LIB_LIBMIGIM) \
+             lib$(LIB_LIBMIGIO) \
+             lib$(LIB_LIBMIGMATH) \
+             lib$(LIB_LIBMIGST) \
+             lib$(LIB_LIBMIGUT) \
+             lib$(LIB_LIBMIGDB) \
+	     lib$(LIB_LIBMIGTAG) \
+		 lib$(LIB_LIBMIGWHITENING) \
+             lib$(LIB_LIBMIGDICOM) \
+			 lib$(LIB_LIBMIGFEAT) \
+			 lib$(LIB_LIBMIGSVM) \
+             lib$(LIB_LIBMIGSEG) \
+             lib$(LIB_LIBMIGDET_2D) \
+             lib$(LIB_LIBMIGDET_3D) \
+	     lib$(LIB_LIBMIGFPR_1) \
+	     lib$(LIB_LIBMIGFPR_2) \
+             $(OBJ_CAD)
+	$(CPP) -o $@ $(OBJ_CAD) $(LDFLAGS) 
+
+# lung SCP
+$(EXE_SCP) : \
+             lib$(LIB_LIBMIGIM) \
+             lib$(LIB_LIBMIGIO) \
+             lib$(LIB_LIBMIGST) \
+             lib$(LIB_LIBMIGUT) \
+             $(OBJ_SCP)
+	$(CPP) -o $@ $(OBJ_SCP) $(LDFLAGS) 
+
+# lung tools -> db insert
+$(EXE_DB_INSERT) : \
+             lib$(LIB_LIBMIGIM) \
+             lib$(LIB_LIBMIGIO) \
+             lib$(LIB_LIBMIGST) \
+             lib$(LIB_LIBMIGUT) \
+             lib$(LIB_LIBMIGDB) \
+             lib$(LIB_LIBMIGTAG) \
+             lib$(LIB_LIBMIGMATH) \
+			$(OBJ_DB_INSERT)
+	$(CPP) -o $@ $(OBJ_DB_INSERT) $(LDFLAGS)
+
+# lung tools -> converter
+$(EXE_CONVERTER) : \
+             lib$(LIB_LIBMIGIM) \
+             lib$(LIB_LIBMIGIO) \
+             lib$(LIB_LIBMIGST) \
+             lib$(LIB_LIBMIGUT) \
+             lib$(LIB_LIBMIGDB) \
+             $(OBJ_CONVERTER)
+	$(CPP) -o $@ $(OBJ_CONVERTER) $(LDFLAGS)
+
+# lung tools -> resize
+LD_FLAGS_RESIZE = \
+        -lmigim \
+        -lmigio \
+        -lmigst \
+        -lmigut \
+        -ldcmnet \
+        -ldcmimage \
+        -ldcmimgle \
+        -ldcmjpeg \
+        -ldcmdata \
+        -lofstd \
+        -ltiff \
+        -lz \
+        $(LDFLAGS_MATLAB) \
+        $(LIB_DIRS) \
+        -liconv \
+		-loflog #needed in new dcmtk version
+
+
+$(EXE_RESIZE) : \
+             lib$(LIB_LIBMIGIM) \
+             lib$(LIB_LIBMIGIO) \
+             lib$(LIB_LIBMIGST) \
+             lib$(LIB_LIBMIGUT) \
+ 	     $(OBJ_RESIZE)
+	$(CPP) -o $@ $(OBJ_RESIZE) $(LD_FLAGS_RESIZE) 
+
+# lung tools mark
+LD_FLAGS_MARK = $(LIB_DIRS) \
+	    -lmigim \
+            -lmigio \
+            -lmigst \
+            -lmigut \
+            -lmigtag \
+            -ldcmimage \
+            -ldcmimgle \
+            -ldcmdata \
+            -lofstd \
+            -ltiff \
+            -lz \
+	   $(LDFLAGS_MATLAB) \
+         -liconv \
+         -loflog #needed in new dcmtk version
+
+
+$(EXE_MARK) : \
+             lib$(LIB_LIBMIGIM) \
+             lib$(LIB_LIBMIGIO) \
+             lib$(LIB_LIBMIGST) \
+             lib$(LIB_LIBMIGUT) \
+             lib$(LIB_LIBMIGTAG) \
+             $(OBJ_MARK)
+	$(CPP) -o $@ $(OBJ_MARK) $(LD_FLAGS_MARK)
+
+# lung tools -> training
+LD_FLAGS_TRAINING = $(LIB_DIRS) \
+			-lmigfeat \
+	    	-lmigim \
+            -lmigio \
+            -lmigst \
+            -lmigut \
+            -lmigtag \
+			-lmigwhitening \
+			-lmigsvm \
+            -ldcmimage \
+            -ldcmimgle \
+            -ldcmdata \
+            -lofstd \
+            -ltiff \
+            -lz  \
+			-lpthread \
+            $(LDFLAGS_EXTERN) \
+            $(LDFLAGS_MATLAB) \
+         -liconv \
+         -loflog #needed in new dcmtk version
+
+$(EXE_TRAINING) : \
+             lib$(LIB_LIBMIGIM) \
+             lib$(LIB_LIBMIGIO) \
+             lib$(LIB_LIBMIGST) \
+             lib$(LIB_LIBMIGUT) \
+             lib$(LIB_LIBMIGTAG) \
+             lib$(LIB_LIBMIGWHITENING) \
+			 lib$(LIB_LIBMIGFEAT) \
+             $(OBJ_TRAINING)
+	$(CPP) -o $@ $(OBJ_TRAINING) $(LD_FLAGS_TRAINING)
+
+
+
+
+
+########################################################
+# CLEANUP
+########################################################
+clean:
+	rm -f *.a
+	rm -f *.o
+	rm -f *.d
+	rm -f lib$(LIB_LIBMIGDICOM)
+	rm -f lib$(LIB_LIBMIGSEG)
+	rm -f lib$(LIB_LIBMIGDET_2D)
+	rm -f lib$(LIB_LIBMIGDET_3D)
+	rm -f lib$(LIB_LIBMIGFPR_1)
+	rm -f lib$(LIB_LIBMIGFPR_2)
+	rm -f $(EXE_SCP)
+	rm -f $(EXE_CAD)
+	rm -f $(EXE_DB_INSERT)
+	rm -f $(EXE_RESIZE)
+	rm -f $(EXE_MARK)
+	rm -f $(EXE_TRAINING)
+
+##############################################
+# DEPENDENCIES
+##############################################
+DEPS = $(DEP_SCP) \
+       $(DEP_CAD) \
+       $(DEP_MARK) \
+	$(DEP_RESIZE) \
+	$(DEP_DB_INSERT) \
+	$(DEP_CONVERTER) \
+	$(DEP_TRAINING) \
+       $(DEP_LIBMIGUT) \
+       $(DEP_LIBMIGST) \
+       $(DEP_LIBMIGIO) \
+       $(DEP_LIBMIGMATH) \
+       $(DEP_LIBMIGIM) \
+       $(DEP_LIBMIGFEAT) \
+       $(DEP_LIBMIGWHITENING) \
+       $(DEP_LIBMIGDB) \
+       $(DEP_LIBMIGDICOM) \
+       $(DEP_LIBMIGSEG) \
+       $(DEP_LIBMIGDET_2D) \
+       $(DEP_LIBMIGDET_3D) \
+       $(DEP_LIBMIGFPR_1) \
+       $(DEP_LIBMIGFPR_2) \
+
+ifneq "$(MAKECMDGOALS)" "clean"
+  -include $(DEPS)
+endif
+

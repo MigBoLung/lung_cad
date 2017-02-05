@@ -3,6 +3,10 @@
 *.pdb
 *.exp
 *.dll
+*.o
+*.so
+*.d
+*.a
 build/mex/**
 **/Debug
 **/Release

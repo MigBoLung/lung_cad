@@ -4,36 +4,14 @@
 // Copyright (C) 2009 Gael Guennebaud <gael.guennebaud@inria.fr>
 // Copyright (C) 2009 Hauke Heibel <hauke.heibel@googlemail.com>
 //
-// Eigen is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Lesser General Public
-// License as published by the Free Software Foundation; either
-// version 3 of the License, or (at your option) any later version.
-//
-// Alternatively, you can redistribute it and/or
-// modify it under the terms of the GNU General Public License as
-// published by the Free Software Foundation; either version 2 of
-// the License, or (at your option) any later version.
-//
-// Eigen is distributed in the hope that it will be useful, but WITHOUT ANY
-// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License or the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public
-// License and a copy of the GNU General Public License along with
-// Eigen. If not, see <http://www.gnu.org/licenses/>.
+// This Source Code Form is subject to the terms of the Mozilla
+// Public License v. 2.0. If a copy of the MPL was not distributed
+// with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #ifndef EIGEN_STDVECTOR_H
 #define EIGEN_STDVECTOR_H
 
-#include "Eigen/src/StlSupport/details.h"
-
-// Define the explicit instantiation (e.g. necessary for the Intel compiler)
-#if defined(__INTEL_COMPILER) || defined(__GNUC__)
-  #define EIGEN_EXPLICIT_STL_VECTOR_INSTANTIATION(...) template class std::vector<__VA_ARGS__, Eigen::aligned_allocator<__VA_ARGS__> >;
-#else
-  #define EIGEN_EXPLICIT_STL_VECTOR_INSTANTIATION(...)
-#endif
+#include "details.h"
 
 /**
  * This section contains a convenience MACRO which allows an easy specialization of
@@ -41,19 +19,18 @@
  * is used automatically.
  */
 #define EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(...) \
-EIGEN_EXPLICIT_STL_VECTOR_INSTANTIATION(__VA_ARGS__) \
 namespace std \
 { \
-  template<typename _Ay> \
-  class vector<__VA_ARGS__, _Ay>  \
-    : public vector<__VA_ARGS__, Eigen::aligned_allocator<__VA_ARGS__> > \
+  template<> \
+  class vector<__VA_ARGS__, std::allocator<__VA_ARGS__> >  \
+    : public vector<__VA_ARGS__, EIGEN_ALIGNED_ALLOCATOR<__VA_ARGS__> > \
   { \
-    typedef vector<__VA_ARGS__, Eigen::aligned_allocator<__VA_ARGS__> > vector_base; \
+    typedef vector<__VA_ARGS__, EIGEN_ALIGNED_ALLOCATOR<__VA_ARGS__> > vector_base; \
   public: \
     typedef __VA_ARGS__ value_type; \
-    typedef typename vector_base::allocator_type allocator_type; \
-    typedef typename vector_base::size_type size_type;  \
-    typedef typename vector_base::iterator iterator;  \
+    typedef vector_base::allocator_type allocator_type; \
+    typedef vector_base::size_type size_type;  \
+    typedef vector_base::iterator iterator;  \
     explicit vector(const allocator_type& a = allocator_type()) : vector_base(a) {}  \
     template<typename InputIterator> \
     vector(InputIterator first, InputIterator last, const allocator_type& a = allocator_type()) : vector_base(first, last, a) {} \
@@ -67,8 +44,8 @@ namespace std \
   }; \
 }
 
-// check whether we really need the std::vector specialization
-#if !(defined(_GLIBCXX_VECTOR) && (!EIGEN_GNUC_AT_LEAST(4,1))) /* Note that before gcc-4.1 we already have: std::vector::resize(size_type,const T&). */
+// Don't specialize if containers are implemented according to C++11
+#if !EIGEN_HAS_CXX11_CONTAINERS
 
 namespace std {
 
@@ -92,7 +69,7 @@ namespace std {
     }
 
   template<typename T>
-  class vector<T,Eigen::aligned_allocator<T> >
+  class vector<T,EIGEN_ALIGNED_ALLOCATOR<T> >
     : public vector<EIGEN_WORKAROUND_MSVC_STL_SUPPORT(T),
                     Eigen::aligned_allocator_indirection<EIGEN_WORKAROUND_MSVC_STL_SUPPORT(T)> >
 {
@@ -104,7 +81,6 @@ namespace std {
   { resize(new_size, T()); }
 
 #if defined(_VECTOR_)
-  #pragma message("old method")
   // workaround MSVC std::vector implementation
   void resize(size_type new_size, const value_type& x)
   {
@@ -120,6 +96,13 @@ namespace std {
   { return vector_base::insert(position,x); }
   void insert(const_iterator position, size_type new_size, const value_type& x)
   { vector_base::insert(position, new_size, x); }
+#elif defined(_GLIBCXX_VECTOR) && (!(EIGEN_GNUC_AT_LEAST(4,1)))
+  /* Note that before gcc-4.1 we already have: std::vector::resize(size_type,const T&).
+   * However, this specialization is still needed to make the above EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION trick to work. */
+  void resize(size_type new_size, const value_type& x)
+  {
+    vector_base::resize(new_size,x);
+  }
 #elif defined(_GLIBCXX_VECTOR) && EIGEN_GNUC_AT_LEAST(4,2)
   // workaround GCC std::vector implementation
   void resize(size_type new_size, const value_type& x)
@@ -142,7 +125,7 @@ namespace std {
 #endif
   };
 }
+#endif // !EIGEN_HAS_CXX11_CONTAINERS
 
-#endif // check whether specialization is actually required
 
 #endif // EIGEN_STDVECTOR_H

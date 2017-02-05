@@ -113,9 +113,9 @@ H_LIBMIGMATH = \
 SRC_LIBMIGMATH = \
    mig_math_fit.c
 
-OBJ_LIBMIGMATH := $(SRC_LIBMMATH:.c=.o)
-OBJ_LIBMIGMATH := $(OBJ_LIBMMATH:.cpp=.o)
-DEP_LIBMIGMATH := $(OBJ_LIBMMATH:.o=.d)
+OBJ_LIBMIGMATH := $(SRC_LIBMIGMATH:.c=.o)
+OBJ_LIBMIGMATH := $(OBJ_LIBMIGMATH:.cpp=.o)
+DEP_LIBMIGMATH := $(OBJ_LIBMIGMATH:.o=.d)
 LIB_LIBMIGMATH := migmath.a
 
 ##############################################

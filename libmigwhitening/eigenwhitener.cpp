@@ -173,8 +173,8 @@ const float _Eps = 1e-5f;
 	int EigenWhitener::apply ( const float* const in_vec, const float* out_vec)
 	{
 		//map to eigen data structures
-		Map<VectorXf> in_vec_map(in_vec, feat_num);
-		Map<VectorXf> out_vec_map(out_vec, feat_num);
+		Map<VectorXf> in_vec_map(const_cast<float*> (in_vec), feat_num);
+		Map<VectorXf> out_vec_map(const_cast<float*> (out_vec), feat_num);
 		
 		VectorXf temp = eigenvectors.transpose() * in_vec_map;
 
