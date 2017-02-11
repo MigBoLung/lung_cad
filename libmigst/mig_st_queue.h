@@ -26,8 +26,8 @@ typedef struct _mig_queue_t
     int len;		/* curretn number of entries in queue */
     int max_len;	/* maximum allowed lenght for queue */
     
-    sem_t empty;	/* number of empty slots in the queue */
-    sem_t full;		/* number of available items to process */
+    sem_t *empty;	/* number of empty slots in the queue */
+    sem_t *full;		/* number of available items to process */
 
     pthread_mutex_t mutex;	/* queue mutex */
     pthread_cond_t  cond;	/* queue cond */

@@ -1,6 +1,11 @@
 #include "mig_st_queue.h"
 #include "mig_error_codes.h"
 
+
+static char* semaphore_empty = "SemEmpty";
+static char* semaphore_full = "SemFull";
+
+
 /************************************************/
 /* EXPORTED FUNCTIONS */
 /************************************************/
@@ -17,8 +22,15 @@ mig_queue_init ( mig_queue_t *queue ,
 	queue->len = 0;
 	queue->max_len = max_queue_len;
 
-	sem_init ( &( queue->empty ) , 0  , max_queue_len );
+    /* on mac, only named semaphores are supported */
+	/*
+    sem_init ( &( queue->empty ) , 0  , max_queue_len );
 	sem_init ( &( queue->full ) , 0 , 0 );
+	*/
+
+    queue->empty = sem_open ( semaphore_empty, O_CREAT,  0777, max_queue_len );
+        
+    queue->full = sem_open ( semaphore_full, O_CREAT, 0777, 0 );
 
 	pthread_mutex_init ( &( queue->mutex ) , NULL );
 	pthread_cond_init ( &( queue->cond ) , NULL );
@@ -46,7 +58,7 @@ mig_queue_add ( mig_queue_t *queue , void *data )
     	tmp->next = NULL;
 
 	/* wait for free space in the queue */
-	sem_wait ( &( queue->empty ) );
+	sem_wait ( queue->empty );
 
     /* assure exclusive access to the list */
 	rc = pthread_mutex_lock ( &( queue->mutex )  );
@@ -72,7 +84,7 @@ mig_queue_add ( mig_queue_t *queue , void *data )
 
 	/* signal there's a new request to handle */
 	//rc = pthread_cond_signal( queue->p_cond_var );
-	sem_post ( &( queue->full ) );
+	sem_post ( queue->full );
 
 	return MIG_OK;
 }
@@ -86,10 +98,11 @@ mig_queue_get ( mig_queue_t *queue )
 	void *tmp_data;
 
    if ( queue == NULL )
-      return NULL;
+       return NULL;
+
    
    /* wait for new items in the queue */
-   sem_wait ( &( queue->full ) );
+   sem_wait ( queue->full );
    
    /* assure exclusive access to the list */
 	rc = pthread_mutex_lock ( &( queue->mutex ) );
@@ -112,7 +125,7 @@ mig_queue_get ( mig_queue_t *queue )
 	rc = pthread_mutex_unlock ( &( queue->mutex ) );
    
 	/* wait for new items in the queue */
-	sem_post ( &( queue->empty ) );
+	sem_post ( queue->empty );
    
 	if ( tmp == NULL )
 		return NULL;
@@ -175,8 +188,13 @@ mig_queue_del ( mig_queue_t *queue , queue_free_f f )
 	pthread_mutex_destroy ( &( queue->mutex ) );
 	pthread_cond_destroy ( &( queue->cond ) );
    
-	sem_destroy ( &( queue->empty ) );
+    /* on mac, only named semaphores are supported */
+    /*	
+    sem_destroy ( &( queue->empty ) );
 	sem_destroy ( &( queue->full ) );
+    */
+    sem_unlink ( semaphore_empty );
+	sem_unlink ( semaphore_full  );
    
 	free ( queue );
 }

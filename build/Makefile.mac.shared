@@ -20,8 +20,8 @@
 ##############################################
 # TOOLS
 ##############################################
-CC = gcc
-CPP = g++
+CC = clang
+CPP = clang++
 DOX = doxygen
 AR = ar
 ARFLAGS = rcsu
@@ -34,7 +34,7 @@ DLL = g++ -shared
 ##############################################
 # DEFS
 ##############################################
-DEFS_SYS = -DLINUX -D_THREAD_SAFE 
+DEFS_SYS = -DLINUX -D_THREAD_SAFE -D_REENTRANT
 DEFS = $(DEFS_SYS) $(DEFS_MIG)
 
 ##############################################
@@ -209,11 +209,8 @@ INCLUDES = -I$(TOP) \
 	-I$(DIR_OS_INC) \
       -I$(DIR_OS_INC)/libtiff \
       -I$(DIR_OS_INC)/sqlite \
-	-I$(DIR_EXTERN_INC) \
-      -I$(DIR_EXTERN_INC)/libtiff \
-      -I$(DIR_EXTERN_INC)/sqlite \
       -I$(DIR_EXTERN_INC)/eigen \
-      -I$(DIR_LIBMIGIM) \
+	  -I$(DIR_LIBMIGIM) \
       -I$(DIR_LIBMIGIO) \
       -I$(DIR_LIBMIGMATH) \
       -I$(DIR_LIBMIGST) \
@@ -230,6 +227,13 @@ INCLUDES = -I$(TOP) \
       -I$(DIR_LIBMIGFPR_1) \
       -I$(DIR_SCP) \
       -I$(DIR_CAD) 
+
+
+#	-I$(DIR_EXTERN_INC) \
+#      -I$(DIR_EXTERN_INC)/libtiff \
+#      -I$(DIR_EXTERN_INC)/sqlite \
+#      -I$(DIR_EXTERN_INC)/eigen \
+
 # set up CPPFLAGS
 CPPFLAGS = $(DEFS)
 

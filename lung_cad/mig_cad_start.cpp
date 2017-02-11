@@ -23,7 +23,7 @@ using namespace log4cplus::helpers;
 static char *_params_ini_f_name = NULL;
 static mig_dic_t *_CadParams = NULL;
 
-static Logger _CadLogger = Logger::getInstance ( CAD_LOGGER_NAME );
+static Logger _CadLogger = Logger::getInstance ( LOG4CPLUS_TEXT (  CAD_LOGGER_NAME ) );
 
 /***************************************************/
 /* private function prototypes */
@@ -94,7 +94,6 @@ main ( int argc , char **argv )
     {
         exit ( EXIT_FAILURE );
     }
-
     LOG4CPLUS_INFO ( _CadLogger , "Cad parameters file : " <<  _params_ini_f_name );
     
     /* dump parameters to log */
@@ -164,7 +163,8 @@ _initialize_server ( char **argv )
 
     try
     {
-        PropertyConfigurator::doConfigure ( _logger_ini_f_name );
+        log4cplus::initialize();
+        log4cplus::PropertyConfigurator::doConfigure ( _logger_ini_f_name );
     }
     catch ( ... )
     {
