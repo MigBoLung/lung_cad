@@ -13,4 +13,9 @@ build/mex/**
 **/VTune
 *.user
 .DS_Store
+build/insert
+build/lungcad
+build/mark
+build/resize
+build/training
 

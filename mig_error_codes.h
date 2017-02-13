@@ -16,8 +16,8 @@ typedef enum
         MIG_ERROR_BUSY                  =  -9,
         MIG_ERROR_LOCK                  = -10,
         MIG_ERROR_UNLOCK                = -11,
-        MIG_ERROR_DB                    = -12
-
+        MIG_ERROR_DB                    = -12,
+        MIG_ERROR_DIR_CONTENTS_EXCEEDED = -13
 } MIG_STATUS;
 
 #endif /* __MIG_ERROR_CODES_H__ */

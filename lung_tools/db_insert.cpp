@@ -44,7 +44,6 @@ main ( int argc , char **argv )
                 _usage ();
                 exit ( EXIT_FAILURE );
         }
-
         /* check wether we can open database file */
         rc = mig_db_init ( &db , argv[2] );
         if ( rc != MIG_OK )
@@ -52,7 +51,6 @@ main ( int argc , char **argv )
                 fprintf ( stderr , "\nERROR. Opening %s..." , argv[2] );
                 exit ( EXIT_FAILURE );
         }
-
         /* check wether second entry is file list or directory */
         rc = mig_ut_fs_isfile ( argv[1] , &flag );
         if ( rc != MIG_OK )
@@ -60,7 +58,6 @@ main ( int argc , char **argv )
                 fprintf ( stderr , "\nERROR. Reading %s..." , argv[1] );
                 exit ( EXIT_FAILURE );
         }
-        
         /* given entry is file -> list of directories*/
         if ( flag == 1 )
         {

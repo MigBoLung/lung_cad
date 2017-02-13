@@ -46,12 +46,18 @@ mig_ut_fs_rlist ( char *fname ,
 	/* start scanning file line by line */
 	while ( fgets( line , MAX_PATH , f ) != NULL )
 	{
-		if ( ( line[0] == '#'  ) ||
+        if ( ( line[0] == '#'  ) ||
 		     ( line[0] == '\n' ) ||
 		     ( line[0] == '\r' ) )
 			continue;
 
-		/* get rid of carriage return
+        if (*num == MAX_DIR_CONTENTS)
+        {
+            rc = MIG_ERROR_DIR_CONTENTS_EXCEEDED;
+            goto error;
+        }
+		
+        /* get rid of carriage return
 		   and new line */
 		
 		idx = line;
@@ -81,7 +87,6 @@ mig_ut_fs_rlist ( char *fname ,
 		rc = MIG_ERROR_IO;
 		goto error;
 	}
-
 
 	free ( line );
 	fclose ( f );
