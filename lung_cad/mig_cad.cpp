@@ -908,7 +908,7 @@ _db_reader ( void* arg )
     {
         /* current lenght of queue */
         CurrQueueLen = mig_queue_get_len ( &_InputQueue );
-           
+        
         /* calculate how many entries we can add */
         AvailableEntries = _MaxQueueLen - CurrQueueLen;
         if ( AvailableEntries == 0 )
@@ -943,6 +943,7 @@ _db_reader ( void* arg )
               
             LOG4CPLUS_DEBUG ( _CadLogger , " List Reader Retreived  : " << Entry->InputPath );
               
+
             NewEntryPath = NULL;
             AvailableEntries --;
         }

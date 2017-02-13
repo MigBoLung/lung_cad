@@ -32,6 +32,9 @@ typedef struct _mig_queue_t
     pthread_mutex_t mutex;	/* queue mutex */
     pthread_cond_t  cond;	/* queue cond */
 
+    char *semname_empty;
+    char *semname_full;
+
 } mig_queue_t;
 
 /* create queue */

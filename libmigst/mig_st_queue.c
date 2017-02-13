@@ -1,9 +1,13 @@
 #include "mig_st_queue.h"
 #include "mig_error_codes.h"
 
+static
+char* gen_sem_name ( char* basename);
 
-static char* semaphore_empty = "SemEmpty";
-static char* semaphore_full = "SemFull";
+
+
+static char* semname_empty_base = "SemEmpty";
+static char* semname_full_base = "SemFull";
 
 
 /************************************************/
@@ -27,10 +31,13 @@ mig_queue_init ( mig_queue_t *queue ,
     sem_init ( &( queue->empty ) , 0  , max_queue_len );
 	sem_init ( &( queue->full ) , 0 , 0 );
 	*/
+    queue->semname_empty = gen_sem_name(semname_empty_base);
+    queue->semname_full = gen_sem_name(semname_full_base);
+    
 
-    queue->empty = sem_open ( semaphore_empty, O_CREAT,  0777, max_queue_len );
+    queue->empty = sem_open ( queue->semname_empty, O_CREAT,  0777, max_queue_len );
         
-    queue->full = sem_open ( semaphore_full, O_CREAT, 0777, 0 );
+    queue->full = sem_open ( queue->semname_full, O_CREAT, 0777, 0 );
 
 	pthread_mutex_init ( &( queue->mutex ) , NULL );
 	pthread_cond_init ( &( queue->cond ) , NULL );
@@ -193,9 +200,11 @@ mig_queue_del ( mig_queue_t *queue , queue_free_f f )
     sem_destroy ( &( queue->empty ) );
 	sem_destroy ( &( queue->full ) );
     */
-    sem_unlink ( semaphore_empty );
-	sem_unlink ( semaphore_full  );
-   
+    sem_unlink ( queue->semname_empty );
+	sem_unlink ( queue->semname_full  );
+    
+    free( queue->semname_empty );
+    free( queue->semname_full ); 
 	free ( queue );
 }
 
@@ -215,5 +224,15 @@ mig_queue_dump ( mig_queue_t *queue, queue_dump_f f )
 	for ( i = 0 ; i < queue->len ; ++i , tmp = tmp->next )
 		f( tmp->data );
 	rc = pthread_mutex_unlock ( &( queue->mutex ) );
+}
+
+/************************************************/
+static
+char* gen_sem_name ( char* basename)
+{
+    const int postfix_len = 5;
+    char* buf = (char*) malloc ( strlen(basename + postfix_len + 2) * sizeof(char) ) ;  
+    sprintf(buf, "%s_%0d", basename, rand()%9999);
+    return buf;
 }
 
