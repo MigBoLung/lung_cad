@@ -200,11 +200,18 @@ mig_queue_del ( mig_queue_t *queue , queue_free_f f )
     sem_destroy ( &( queue->empty ) );
 	sem_destroy ( &( queue->full ) );
     */
-    sem_unlink ( queue->semname_empty );
-	sem_unlink ( queue->semname_full  );
-    
-    free( queue->semname_empty );
-    free( queue->semname_full ); 
+    if ( queue->semname_empty )
+    {
+        sem_unlink ( queue->semname_empty );
+        free( queue->semname_empty );
+    }
+
+    if ( queue->semname_full )
+    {
+        sem_unlink ( queue->semname_full  );
+        free( queue->semname_full );
+    }
+
 	free ( queue );
 }
 

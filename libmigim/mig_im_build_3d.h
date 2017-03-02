@@ -39,7 +39,8 @@ mig_im_build_obj3d ( mig_lst_t *Src ,
                      mig_lst_t *Results ,
                      mig_lst_cmp_f build_f , 
                      mig_lst_sel_f cut_f ,
-                     mig_lst_free_f free_f );
+                     mig_lst_free_f free_f,
+                     int just_copy_and_filter );
 
 void
 obj3d_compact ( mig_im_region_t *Region );

@@ -444,6 +444,12 @@ _fpr2_thread_routine ( void *arg )
 	/*******************************/
 	/* MULTIRES PARAMS             */
 	/*******************************/
+    /* 
+     * in this implementation, multires is used only 
+     * if no radius estimation is present 
+     * (which should never happen)
+     */
+
 	int multires_pos = 0;
 	float multires_radius = 0.0f;
 
@@ -572,6 +578,14 @@ _classify_obj_3d ( mig_im_region_t *obj3d , int *label , fpr2_thread_data *data)
 		&(_Fpr2Params.featparams), featstruct ))
 		return MIG_ERROR_INTERNAL;
 	*/
+
+    /* GF 20170216: I don't remember the sense of this comment,
+     * further investigation needed
+     *
+     * verified crops are cut from stack_r and stack_l, which are segmented
+     *
+     */
+
 	/* from segmented :TODO: NOT OK: we must change extract_feature in order to handle bb*/
 	
 	_temp_obj3d.centroid[0] = obj3d->centroid[0] - data->SrcBoundingBox->x0;
@@ -587,7 +601,6 @@ _classify_obj_3d ( mig_im_region_t *obj3d , int *label , fpr2_thread_data *data)
 
 	for (idir = 0; idir != NDIR ; idir++){
 
-		/* TODO: here create REAL whitening  (it gives way better results) */
 		/*
 		mig_im_scale_whitening ( featstruct->feats[idir], whitened , NSIGMA_WHITE,
 			_Fpr2Params.scales.len , _Fpr2Params.scales.mean ,  _Fpr2Params.scales.std );

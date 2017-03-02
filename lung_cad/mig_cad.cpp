@@ -521,21 +521,21 @@ cleanup :
         LOG4CPLUS_INFO ( _CadLogger , " Results are in  : " << CurrEntry->ResultsFileName );
       
         /* dicom loader cleanup */
-        if ( _CadData.load_cleanup )
+        if ( _CadData.load_cleanup && _CadData.stack)
             _CadData.load_cleanup ( _CadData.stack );
       
         /* segmentation cleanup */
         if ( _CadData.seg_cleanup )
         {
-            _CadData.seg_cleanup ( _CadData.stack_l );
-            _CadData.seg_cleanup ( _CadData.stack_r );
+            if ( _CadData.stack_l ) _CadData.seg_cleanup ( _CadData.stack_l );
+            if ( _CadData.stack_r ) _CadData.seg_cleanup ( _CadData.stack_r );
         }
       
         /* detection cleanup */
 		if ( _CadData.det_cleanup )
-		{	
-			mig_lst_free_custom_static ( &( _CadData.det_r ) , _CadData.det_cleanup );
-			mig_lst_free_custom_static ( &( _CadData.det_l ) , _CadData.det_cleanup );
+		{
+			if ( & ( _CadData.det_r ) ) mig_lst_free_custom_static ( &( _CadData.det_r ) , _CadData.det_cleanup );
+			if ( & ( _CadData.det_l ) ) mig_lst_free_custom_static ( &( _CadData.det_l ) , _CadData.det_cleanup );
 		}
 
 		/*AAAAAAA next line works only with regs with only one element*/

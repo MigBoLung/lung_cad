@@ -546,15 +546,20 @@ mig_lst_rem_all ( mig_lst_t *list , mig_lst_sel_f fsel , mig_lst_free_f ffree )
     if ( list->head == NULL )
             return;
 
-    for ( pos = 0 ; pos < list->num ; ++ pos )
+    while ( pos < list->num )
     {
         data = mig_lst_peek ( list , pos );
         if ( fsel ( data ) == 0 )
         {
             data = mig_lst_rem_pos ( list , pos );
+            
+            printf("calling free on element at pos %d\n" , pos);
             ffree ( data );
             -- pos;
+            printf("lst->num: %d\n" , list->num);
         }
+        ++pos;
+     
     }
 }
 

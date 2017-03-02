@@ -37,8 +37,13 @@ typedef struct _fpr1_params_t
     /* parameters for cutting 3d regions */
     int max_obj_length;             /* maximum allowed object lenght in z in pixels */
 
+    int apply_only_radius;
+    int skip_build3d;
+
 	float min_max_radius;
-	float min_mean_GL;
+	float max_max_radius;
+    
+    float min_mean_GL;
 	float max_mean_GL;
 
     float max_angle_l2; /* maximum inclination angle allowed for structures of z lenght 2 */
@@ -308,10 +313,21 @@ mig_init ( mig_dic_t *d ,
     _Fpr1Params.max_scan_dist =
         mig_ut_ini_getfloat ( d , PARAM_FPR1_MAX_SCAN_DISTANCE , DEFAULT_PARAM_FPR1_MAX_SCAN_DISTANCE );
 
+    _Fpr1Params.skip_build3d =
+        mig_ut_ini_getfloat ( d , PARAM_FPR1_SKIP_BUILD3D , DEFAULT_PARAM_FPR1_SKIP_BUILD3D );
+    
+    /* should we check only radius? */
+    _Fpr1Params.apply_only_radius = 
+    mig_ut_ini_getint ( d, PARAM_FPR1_APPLY_ONLY_RADIUS , DEFAULT_PARAM_FPR1_APPLY_ONLY_RADIUS );
+    
+
     /* 3d object cutting parameters */
 
     _Fpr1Params.min_max_radius = 
 		mig_ut_ini_getfloat ( d, PARAM_FPR1_MIN_MAX_RADIUS , DEFAULT_PARAM_FPR1_MIN_MAX_RADIUS );
+    
+    _Fpr1Params.max_max_radius = 
+		mig_ut_ini_getfloat ( d, PARAM_FPR1_MAX_MAX_RADIUS , DEFAULT_PARAM_FPR1_MAX_MAX_RADIUS );
 
 	_Fpr1Params.max_mean_GL = 
 		mig_ut_ini_getfloat ( d, PARAM_FPR1_MAX_MEAN_GL , DEFAULT_PARAM_FPR1_MAX_MEAN_GL );
@@ -634,16 +650,14 @@ _fpr1_thread_routine ( void *arg )
     /* build and prune 3d objects */
     if ( mig_im_build_obj3d ( data->Input , &Results ,
             & _build_obj3d_compare ,  & _build_obj3d_select ,
-            _CadData->det_cleanup ) != 0 )
+            _CadData->det_cleanup , _Fpr1Params.skip_build3d) != 0 )
     {
         pthread_exit( (void*)MIG_ERROR_MEMORY );
     }
-    
     /* copy local list to global cad data structure */
 
 	//maybe we need to clean data->Input first... NO! it's emptied in mig_im_build_obj3d
 	mig_lst_cat ( &Results , data->Input );
-    
 
     LOG4CPLUS_INFO ( _log , "thread id : " << data->id << " Number of 3D regions : " << mig_lst_len( data->Input ) );
 	
@@ -688,11 +702,20 @@ _build_obj3d_select  ( const void *a )
 //DEBUG: returning 1, I need no pruning now (to check next step)
 //	return 1;
 
-	/* calculate region max_radius in mm */
+    printf("before computing radius, reg->size = %d \n", reg->size);
+    
+    /* calculate region max_radius in mm */
 	max_radius = _obj3d_max_radius (reg);
-	
+    printf("radius: %f\n", max_radius);
+        
 	if (max_radius < _Fpr1Params.min_max_radius)
 		return 0;
+
+    if (max_radius > _Fpr1Params.max_max_radius)
+        return 0;
+
+    if (_Fpr1Params.apply_only_radius)
+        return 1; 
 
 	mean_GL = _obj3d_mean_GL (reg);
 	if (mean_GL >  _Fpr1Params.max_mean_GL || mean_GL < _Fpr1Params.min_mean_GL)
@@ -918,14 +941,25 @@ _obj3d_angle ( mig_im_region_t *reg )
     return angle;
 }
 
+
+/* GF 20170302 made it work also for objs without regions (for 3d regs) */
 static float
 _obj3d_max_radius ( mig_im_region_t *reg )
 {
-	mig_lst_t *objs = &( reg->objs );   /* list of 2d objects belonging to current 3d object */
+
+    if ( reg->objs.num == 0 )
+    {
+        return reg->radius * _CadData->stack_s.h_res;
+    } 
+
+
+    mig_lst_t *objs = &( reg->objs );   /* list of 2d objects belonging to current 3d object */
+    
     mig_im_region_t *curr;              /* current 2d view */
     mig_lst_iter it; 
 	float radius = 0;
 	float curr_radius_mm = 0;
+
 	/* build up coordinate arrays */
     mig_lst_iter_get ( &it , objs );
     while (  curr = (mig_im_region_t*) mig_lst_iter_next ( &it ) )

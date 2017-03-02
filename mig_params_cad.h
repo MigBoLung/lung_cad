@@ -150,10 +150,16 @@
 #define PARAM_FPR1                          "fpr1:perform_fpr1"
 #define PARAM_FPR1_DLL                      "fpr1:dll"
 
+#define PARAM_FPR1_APPLY_ONLY_RADIUS             "fpr1:apply_only_radius"
+
+#define PARAM_FPR1_SKIP_BUILD3D             "fpr1:skip_build3d"
+
 #define PARAM_FPR1_MAX_SCAN_DISTANCE        "fpr1:delta_tolerance"
 #define PARAM_FPR1_DELTA_TOLERANCE          "fpr1:max_scan_distance"
 
 #define PARAM_FPR1_MIN_MAX_RADIUS          "fpr1:min_max_radius"
+#define PARAM_FPR1_MAX_MAX_RADIUS          "fpr1:max_max_radius"
+
 
 #define PARAM_FPR1_MAX_OBJ_LENGHT           "fpr1:max_obj_length"
 
@@ -196,10 +202,15 @@
 #define DEFAULT_PARAM_FPR1_MAX_SCAN_DISTANCE    3
 #define DEFAULT_PARAM_FPR1_DELTA_TOLERANCE      7.75f
 
+#define DEFAULT_PARAM_FPR1_SKIP_BUILD3D         0
+#define DEFAULT_PARAM_FPR1_APPLY_ONLY_RADIUS    0
+
 #define DEFAULT_PARAM_FPR1_MAX_OBJ_LENGHT       13.0f
-#define DEFAULT_PARAM_FPR1_MIN_MAX_RADIUS			1.6f
+#define DEFAULT_PARAM_FPR1_MIN_MAX_RADIUS			1.0f
+#define DEFAULT_PARAM_FPR1_MAX_MAX_RADIUS			15.0f
 #define DEFAULT_PARAM_FPR1_MAX_MEAN_GL				1.f
 #define DEFAULT_PARAM_FPR1_MIN_MEAN_GL				0.f
+
 /***********************************************************/
 /* CAD FPR2 */
 /***********************************************************/
